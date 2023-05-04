@@ -1,4 +1,5 @@
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
+import { Sharp, FormatEnum } from "sharp";
 
 export const deletedResponseSchema = {
   type: "object",
@@ -59,7 +60,7 @@ export const idParamSchema = {
 
 export type IdParam = FromSchema<typeof idParamSchema>;
 
-export const supportedImageExtensions = [
+export const supportedInputImageExtensions = [
   "jpg",
   "jpeg",
   "png",
@@ -70,13 +71,46 @@ export const supportedImageExtensions = [
   "apng",
   "heic",
   "heif",
-  "avif",
-];
+] as const;
 
-export const imageVersionSchema = {
+export type SupportedImageExtension =
+  (typeof supportedInputImageExtensions)[number];
+
+export const supportedOutputImageExtensions = [
+  "jpeg",
+  "png",
+  "webp",
+  "tiff",
+  "gif",
+  "jp2",
+  "avif",
+  "heif",
+  "jxl",
+  "raw",
+] as const;
+
+export type SupportedOutputImageExtension =
+  (typeof supportedOutputImageExtensions)[number];
+
+export const imageUrlSchema = {
   type: "object",
-  description: "Describes a version of the image",
-  required: ["w", "h", "ext", "q", "key"],
+  required: ["id", "ext"],
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid4",
+    },
+    ext: {
+      type: "string",
+      enum: supportedOutputImageExtensions,
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageUrl = FromSchema<typeof imageUrlSchema>;
+
+export const imageQueryParamsSchema = {
+  type: "object",
   properties: {
     w: {
       type: "number",
@@ -88,16 +122,27 @@ export const imageVersionSchema = {
       minimum: 1,
       description: "The height of the image",
     },
-    ext: {
-      type: "string",
-      enum: supportedImageExtensions,
-    },
     q: {
       type: "number",
-      minimum: 0,
-      maximum: 1,
+      minimum: 1,
+      maximum: 100,
       description: "The quality of the image",
     },
+    ext: {
+      type: "string",
+      enum: supportedInputImageExtensions,
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
+
+export const imageVersionSchema = {
+  type: "object",
+  description: "Describes a version of the image",
+  required: ["w", "h", "ext", "q", "key"],
+  properties: {
+    ...imageQueryParamsSchema.properties,
     key: {
       type: "string",
       description: "The key of the image in the image bucket",
@@ -109,6 +154,7 @@ export type ImageVersion = FromSchema<typeof imageVersionSchema>;
 
 export const imageSchema = {
   type: "object",
+  required: ["user", "versions"],
   properties: {
     id: {
       type: "string",

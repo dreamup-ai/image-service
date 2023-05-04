@@ -1,5 +1,10 @@
 import config from "./config";
-import { Image, ImageVersion, supportedImageExtensions } from "./types";
+import {
+  Image,
+  ImageVersion,
+  SupportedImageExtension,
+  supportedInputImageExtensions,
+} from "./types";
 import { sendWebhook } from "./webhooks";
 import { FastifyBaseLogger } from "fastify";
 import { client as dynamo } from "./clients/dynamo";
@@ -13,7 +18,11 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { Item } from "dynamo-tools";
 import sharp, { Sharp } from "sharp";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import internal from "stream";
 
 const { imageTable } = config.db;
@@ -143,12 +152,6 @@ export const uploadImageToBucket = async (
     throw err;
   }
 
-  if (!supportedImageExtensions.includes(format)) {
-    const err = new Error("Unsupported image format");
-    err.name = "UnsupportedImageFormat";
-    throw err;
-  }
-
   const key = `${config.bucket.prefix}${id}-${width}x${height}-q${quality}.${format}`;
   const uploadCmd = new PutObjectCommand({
     Bucket: config.bucket.name,
@@ -164,17 +167,17 @@ export const uploadImageToBucket = async (
       h: height,
       q: quality,
       key,
-      ext: format,
+      ext: format as SupportedImageExtension,
     };
   } catch (e: any) {
     throw e;
   }
 };
 
-export const getImageFromS3 = async (
+export const getImageFromBucket = async (
   key: string,
-  returnType: "buffer" | "stream" = "buffer"
-): Promise<Buffer | internal.Readable> => {
+  returnType: "buffer" | "stream" | "sharp" = "buffer"
+): Promise<Buffer | internal.Readable | Sharp> => {
   const getCmd = new GetObjectCommand({
     Bucket: config.bucket.name,
     Key: key,
@@ -186,15 +189,36 @@ export const getImageFromS3 = async (
       err.name = "ImageDoesNotExist";
       throw err;
     }
-    if (returnType === "buffer") {
+    if (returnType === "buffer" || "sharp") {
       const chunks = [];
       for await (const chunk of Body as internal.Readable) {
         chunks.push(chunk);
       }
-      return Buffer.concat(chunks);
-    } else {
+      const buff = Buffer.concat(chunks);
+      if (returnType === "sharp") {
+        return sharp(buff);
+      } else {
+        return buff;
+      }
+    } else if (returnType === "stream") {
       return Body as internal.Readable;
+    } else {
+      const err = new Error("Invalid return type");
+      err.name = "InvalidReturnType";
+      throw err;
     }
+  } catch (e: any) {
+    throw e;
+  }
+};
+
+export const deleteImageFromBucket = async (key: string): Promise<void> => {
+  const deleteCmd = new DeleteObjectCommand({
+    Bucket: config.bucket.name,
+    Key: key,
+  });
+  try {
+    await s3.send(deleteCmd);
   } catch (e: any) {
     throw e;
   }
