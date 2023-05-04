@@ -13,6 +13,7 @@ import {
   DeleteItemCommand,
   GetItemCommand,
   PutItemCommand,
+  QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { v4 as uuidv4 } from "uuid";
@@ -94,7 +95,7 @@ export const addNewImageVersionToDb = async (
   }
 };
 
-export const getImageFromDb = async (
+export const getImageFromDbById = async (
   id: string,
   log: FastifyBaseLogger
 ): Promise<Image | null> => {
@@ -108,6 +109,30 @@ export const getImageFromDb = async (
     return null;
   }
   const image = Item.toObject(item) as Image;
+  return image;
+};
+
+export const getImageFromDbByUrl = async (
+  url: string,
+  log: FastifyBaseLogger
+): Promise<Image | null> => {
+  const getCmd = new QueryCommand({
+    TableName: imageTable,
+    IndexName: "url",
+    KeyConditionExpression: "#url = :url",
+    ExpressionAttributeNames: {
+      "#url": "url",
+    },
+    ExpressionAttributeValues: {
+      ":url": Item.fromObject(url),
+    },
+  });
+
+  const { Items } = await dynamo.send(getCmd);
+  if (!Items || !Items.length) {
+    return null;
+  }
+  const image = Item.toObject(Items[0]) as Image;
   return image;
 };
 

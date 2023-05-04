@@ -1,19 +1,32 @@
 import { FastifyInstance } from "fastify";
 import {
   ErrorResponse,
+  Image,
   ImageQueryParams,
+  ImageUpload,
   ImageUrl,
   errorResponseSchema,
   imageQueryParamsSchema,
+  imageSchema,
+  imageUploadSchema,
   imageUrlSchema,
 } from "../types";
 import {
-  getImageFromDb,
+  getImageFromDbById,
   getImageFromBucket,
   uploadImageToBucket,
   addNewImageVersionToDb,
+  createNewImageInDb,
+  getImageFromDbByUrl,
 } from "../crud";
-import { Sharp } from "sharp";
+import sharp, { Sharp } from "sharp";
+import {
+  dreamupInternal,
+  either,
+  dreamupUserSession,
+} from "../middleware/audiences";
+import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 
 const routes = (fastify: FastifyInstance, _: any, done: Function) => {
   /**
@@ -47,7 +60,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       const { id, ext } = req.params;
       const { w, h, q } = req.query;
 
-      const imgData = await getImageFromDb(id, fastify.log);
+      const imgData = await getImageFromDbById(id, fastify.log);
       if (!imgData) {
         return reply.code(404).send({
           error: "Image not found",
@@ -75,12 +88,11 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         const newVersion = await uploadImageToBucket(id, asRequested, q);
         await addNewImageVersionToDb(id, newVersion, fastify.log);
 
-        reply.type(`image/${ext}`).send(await asRequested.toBuffer());
-        return;
+        return reply.type(`image/${ext}`).send(await asRequested.toBuffer());
       }
 
       const img = await getImageFromBucket(version.key, "stream");
-      reply.type(`image/${ext}`).send(img);
+      return reply.type(`image/${ext}`).send(img);
     }
   );
 
@@ -90,6 +102,106 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    * Upload a new image to the bucket, downloading it first if a url is provided.
    * Also accepts a base64 encoded image.
    */
+  fastify.post<{
+    Body: ImageUpload;
+    Response: Image | ErrorResponse;
+  }>(
+    "/image",
+    {
+      schema: {
+        body: imageUploadSchema,
+        response: imageSchema,
+      },
+      preValidation: [either(dreamupUserSession, dreamupInternal)],
+    },
+    async (req, reply) => {
+      const { url, image, force } = req.body;
+
+      let img: Sharp | undefined;
+      let id: string | undefined;
+      if (url) {
+        const cachedImage = await getImageFromDbByUrl(url, fastify.log);
+        if (cachedImage && !force) {
+          return reply.code(200).send(cachedImage);
+        }
+
+        id = cachedImage?.id || uuidv4();
+
+        // download image with fetch
+        try {
+          const res = await fetch(url);
+          if (!res.ok) {
+            return reply.code(400).send({
+              error: "Invalid url",
+            });
+          }
+          const data = await res.arrayBuffer();
+          img = sharp(data);
+        } catch (e) {
+          fastify.log.error(e);
+          return reply.code(500).send({
+            error: "Error downloading image",
+          });
+        }
+      } else if (image) {
+        // decode base64 image
+        const imgBuff = Buffer.from(image, "base64");
+
+        // Get sha of image
+        const sha = crypto.createHash("sha256", {
+          outputLength: 16,
+        });
+        sha.update(imgBuff);
+        id = sha.digest("base64");
+
+        const cachedImage = await getImageFromDbById(id, fastify.log);
+        if (cachedImage && !force) {
+          return reply.code(200).send(cachedImage);
+        }
+
+        try {
+          img = sharp(imgBuff);
+        } catch (e) {
+          fastify.log.error(e);
+          return reply.code(400).send({
+            error: "Invalid base64 image",
+          });
+        }
+      }
+
+      if (!img) {
+        return reply.code(400).send({
+          error: "No image provided",
+        });
+      }
+
+      if (!id) {
+        id = uuidv4();
+      }
+
+      const newImageVersion = await uploadImageToBucket(id, img, 100);
+      const newImageForDb: Image = {
+        id,
+        versions: [newImageVersion],
+        user: req.user?.userId || "internal",
+        url,
+      };
+      try {
+        const newImage = await createNewImageInDb(newImageForDb, fastify.log);
+        return reply.code(201).send(newImage);
+      } catch (e: any) {
+        if (e.name === "ImageAlreadyExists") {
+          return reply.code(409).send({
+            error: "Image already exists",
+          });
+        }
+        fastify.log.error(e);
+        return reply.code(500).send({
+          error: "Error creating image",
+        });
+      }
+    }
+  );
 
   /**
    * DELETE /image/:id

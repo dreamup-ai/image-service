@@ -179,3 +179,26 @@ export const imageSchema = {
 } as const satisfies JSONSchema7;
 
 export type Image = FromSchema<typeof imageSchema>;
+
+export const imageUploadSchema = {
+  type: "object",
+  properties: {
+    url: {
+      type: "string",
+      format: "uri",
+    },
+    image: {
+      type: "string",
+      format: "base64",
+      description: "The image to upload in base64 format",
+    },
+    force: {
+      type: "boolean",
+      default: false,
+      description:
+        "Re-upload the image, even if it's cached already. Only used in conjunction with the `url` field",
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageUpload = FromSchema<typeof imageUploadSchema>;
