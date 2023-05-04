@@ -59,6 +59,20 @@ export const idParamSchema = {
 
 export type IdParam = FromSchema<typeof idParamSchema>;
 
+export const supportedImageExtensions = [
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+  "tiff",
+  "apng",
+  "heic",
+  "heif",
+  "avif",
+];
+
 export const imageVersionSchema = {
   type: "object",
   description: "Describes a version of the image",
@@ -76,18 +90,7 @@ export const imageVersionSchema = {
     },
     ext: {
       type: "string",
-      enum: [
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "webp",
-        "bmp",
-        "tiff",
-        "apng",
-        "heic",
-        "heif",
-      ],
+      enum: supportedImageExtensions,
     },
     q: {
       type: "number",
@@ -101,6 +104,8 @@ export const imageVersionSchema = {
     },
   },
 } as const satisfies JSONSchema7;
+
+export type ImageVersion = FromSchema<typeof imageVersionSchema>;
 
 export const imageSchema = {
   type: "object",

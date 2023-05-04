@@ -22,7 +22,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    */
 
   /**
-   * GET /image?url=:url&w=:w&h=:h&q=:q
+   * GET /image?url=:url&w=:w&h=:h&q=:q&ext=:ext
    *
    * A read-through cache for web images. If the image does not exist in the requested extension, size,
    * or quality, the new version will be created, stored in the bucket, and returned.
