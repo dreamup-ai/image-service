@@ -48,8 +48,13 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         response: {
           200: {
             description: "Ok",
-            media: {
-              type: "image/*",
+            content: {
+              "image/*": {
+                schema: {
+                  type: "string",
+                  format: "binary",
+                },
+              },
             },
           },
           404: errorResponseSchema,
@@ -75,24 +80,36 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         const best = imgData.versions.reduce((prev, current) =>
           prev.w > current.w && prev.q > current.q ? prev : current
         );
+
         const img = (await getImageFromBucket(best.key, "sharp")) as Sharp;
+        const ogMeta = await img.metadata();
 
-        const asRequested = img
-          .resize({
-            width: w,
-            height: h,
-            fit: "fill",
-          })
-          .toFormat(ext, { quality: q });
+        if (
+          (w && w !== ogMeta.width) ||
+          (h && h !== ogMeta.height) ||
+          (q && q !== best.q)
+        ) {
+          const asRequested = img
+            .resize({
+              width: w,
+              height: h,
+              fit: "fill",
+            })
+            .toFormat(ext, { quality: q });
 
-        const newVersion = await uploadImageToBucket(id, asRequested, q);
-        await addNewImageVersionToDb(id, newVersion, fastify.log);
+          const newVersion = await uploadImageToBucket(id, asRequested, q);
 
-        return reply.type(`image/${ext}`).send(await asRequested.toBuffer());
+          await addNewImageVersionToDb(id, newVersion, fastify.log);
+          return reply
+            .type(`image/${ext}`)
+            .send(await asRequested.withMetadata().toBuffer());
+        } else {
+          return reply.type(`image/${ext}`).send(await img.toBuffer());
+        }
+      } else {
+        const img = await getImageFromBucket(version.key, "stream");
+        return reply.type(`image/${ext}`).send(img);
       }
-
-      const img = await getImageFromBucket(version.key, "stream");
-      return reply.type(`image/${ext}`).send(img);
     }
   );
 
@@ -110,7 +127,9 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     {
       schema: {
         body: imageUploadSchema,
-        response: imageSchema,
+        response: {
+          200: imageSchema,
+        },
       },
       preValidation: [either(dreamupUserSession, dreamupInternal)],
     },
@@ -180,6 +199,9 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       }
 
       const newImageVersion = await uploadImageToBucket(id, img, 100);
+
+      // Create a new image if we aren't working from a cache. If we are working from a cache,
+      // we only need to add the new version to the db, and then only if it doesn't already exist.
       const newImageForDb: Image = {
         id,
         versions: [newImageVersion],

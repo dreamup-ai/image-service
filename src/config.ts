@@ -22,7 +22,7 @@ const {
   SESSION_LOGIN_URL,
 } = process.env;
 
-assert(IMAGE_TABLE, "PIPELINE_TABLE is required");
+assert(IMAGE_TABLE, "IMAGE_TABLE is required");
 assert(IMAGE_BUCKET, "IMAGE_BUCKET is required");
 assert(WEBHOOK_PUBLIC_KEY_PATH, "WEBHOOK_PUBLIC_KEY_PATH is required");
 assert(WEBHOOK_PRIVATE_KEY_PATH, "WEBHOOK_PRIVATE_KEY_PATH is required");

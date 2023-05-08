@@ -1,0 +1,8 @@
+dist/
+node_modules/
+test/
+volume/
+.env*
+Docker*
+docker*
+*.md

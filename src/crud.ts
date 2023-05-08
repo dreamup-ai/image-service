@@ -43,14 +43,13 @@ export const createNewImageInDb = async (
     TableName: imageTable,
     Item: Item.fromObject(image),
     ConditionExpression: "attribute_not_exists(id)",
-    ReturnValues: "ALL_NEW",
   });
 
   try {
-    const { Attributes } = await dynamo.send(createCmd);
-    const newImage = Item.toObject(Attributes) as Image;
-    sendWebhook("image.created", newImage, log);
-    return newImage;
+    await dynamo.send(createCmd);
+
+    sendWebhook("image.created", image, log);
+    return image;
   } catch (e: any) {
     if (e.name === "ConditionalCheckFailedException") {
       const err = new Error("Image already exists");
@@ -166,9 +165,8 @@ export const uploadImageToBucket = async (
   image: Sharp,
   quality: number = 100
 ): Promise<ImageVersion> => {
-  const buffer = await image.toBuffer();
+  const buffer = await image.withMetadata().toBuffer();
   const meta = await image.metadata();
-
   const { width, height, format } = meta;
 
   if (!width || !height || !format) {

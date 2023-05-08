@@ -4,7 +4,8 @@
   "description": "A service for managing images in the dreamup platform",
   "main": "dist/src/index.js",
   "scripts": {
-    "test": "mocha --require dist/test/env.js --recursive dist/test"
+    "test": "npm run build && APP_ENV=test mocha --require dist/test/env.js --recursive dist/test",
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
@@ -18,12 +19,14 @@
   "homepage": "https://github.com/dreamup-ai/image-service#readme",
   "devDependencies": {
     "@types/chai": "^4.3.5",
+    "@types/jsonwebtoken": "^9.0.2",
     "@types/mocha": "^10.0.1",
     "@types/node": "^18.16.3",
+    "@types/sinon": "^10.0.14",
     "@types/uuid": "^9.0.1",
-    "@types/jsonwebtoken": "^9.0.2",
     "chai": "^4.3.7",
     "mocha": "^10.2.0",
+    "sinon": "^15.0.4",
     "typescript": "^5.0.4"
   },
   "dependencies": {

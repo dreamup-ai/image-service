@@ -1,5 +1,5 @@
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
-import { Sharp, FormatEnum } from "sharp";
+// import { Sharp, FormatEnum } from "sharp";
 
 export const deletedResponseSchema = {
   type: "object",
@@ -10,7 +10,7 @@ export const deletedResponseSchema = {
     },
     id: {
       type: "string",
-      format: "uuid4",
+      format: "uuid",
     },
   },
 } as const satisfies JSONSchema7;
@@ -19,6 +19,7 @@ export type DeletedResponse = FromSchema<typeof deletedResponseSchema>;
 
 export const errorResponseSchema = {
   type: "object",
+  description: "An error response",
   properties: {
     error: {
       type: "string",
@@ -98,7 +99,7 @@ export const imageUrlSchema = {
   properties: {
     id: {
       type: "string",
-      format: "uuid4",
+      format: "uuid",
     },
     ext: {
       type: "string",
@@ -158,12 +159,12 @@ export const imageSchema = {
   properties: {
     id: {
       type: "string",
-      format: "uuid4",
+      format: "uuid",
       description: "The unique identifier for the image",
     },
     user: {
       type: "string",
-      format: "uuid4",
+      format: "uuid",
       description: "The unique identifier for the user that owns the image",
     },
     url: {
@@ -189,7 +190,7 @@ export const imageUploadSchema = {
     },
     image: {
       type: "string",
-      format: "base64",
+      format: "byte",
       description: "The image to upload in base64 format",
     },
     force: {
