@@ -63,7 +63,7 @@ describe("GET /image/:id.:ext", () => {
     });
   });
 
-  it("should return 200 with the image if requested version does not exist", async () => {
+  it("should return 200 with the image in a different format when requested", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${dbImage.id}.webp`,
@@ -79,5 +79,23 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.width).to.equal(ogMeta.width);
     expect(meta.height).to.equal(ogMeta.height);
     expect(meta.format).to.equal("webp");
+  });
+
+  it("should return 200 with the image in a different size when requested, preserving aspect ratio", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?w=${ogMeta.width! / 2}`,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    const image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width! / 2);
+    expect(meta.height).to.equal(ogMeta.height! / 2);
+    expect(meta.format).to.equal("png");
   });
 });
