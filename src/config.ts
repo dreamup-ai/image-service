@@ -1,7 +1,7 @@
-import { version } from "../package.json";
-import crypto from "crypto";
 import assert from "assert";
+import crypto from "crypto";
 import fs from "fs";
+import { version } from "../package.json";
 
 const {
   AWS_REGION,

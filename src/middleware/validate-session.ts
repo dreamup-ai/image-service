@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import config from "../config";
 import jwt from "jsonwebtoken";
+import config from "../config";
 
 declare module "fastify" {
   interface FastifyRequest {
