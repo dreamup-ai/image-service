@@ -32,6 +32,36 @@ import {
 const rgbaRegex = /^rgba\((\d{1,3}),(\d{1,3}),(\d{1,3}),(\d\.?\d?)\)$/i;
 const rgbRegex = /^rgb\((\d{1,3}),(\d{1,3}),(\d{1,3})\)$/i;
 
+const positionMap = {
+  righttop: "right top",
+  rightbottom: "right bottom",
+  leftbottom: "left bottom",
+  lefttop: "left top",
+  rt: "right top",
+  r: "right",
+  rb: "right bottom",
+  b: "bottom",
+  lb: "left bottom",
+  l: "left",
+  lt: "left top",
+  n: "north",
+  ne: "northeast",
+  e: "east",
+  se: "southeast",
+  s: "south",
+  sw: "southwest",
+  w: "west",
+  nw: "northwest",
+  c: "center",
+};
+
+const normalizePosition = (position: string) => {
+  if (positionMap.hasOwnProperty(position)) {
+    return positionMap[position as keyof typeof positionMap];
+  }
+  return position;
+};
+
 const getRgba = (color: string = "") => {
   let match = rgbRegex.exec(color);
   if (match) {
@@ -152,7 +182,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         resizeOptions.fit &&
         ["cover", "container"].includes(resizeOptions.fit)
       ) {
-        resizeOptions.position = pos as any;
+        resizeOptions.position = normalizePosition(pos);
       }
 
       if (bg && resizeOptions.fit === "contain") {
@@ -166,7 +196,13 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       }
 
       reply.type(`image/${ext}`).send(await asRequested.toBuffer());
-      version = await uploadImageToBucket(id, asRequested, q);
+      version = await uploadImageToBucket(
+        id,
+        asRequested,
+        q,
+        resizeOptions.fit,
+        pos ? normalizePosition(pos) : (undefined as any)
+      );
       await addNewImageVersionToDb(id, version, fastify.log);
     }
   );

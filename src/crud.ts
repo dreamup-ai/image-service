@@ -192,7 +192,7 @@ export const uploadImageToBucket = async (
     throw err;
   }
 
-  const key = `${config.bucket.prefix}${id}-${width}x${height}-q${quality}.${format}`;
+  const key = `${config.bucket.prefix}${id}-${width}x${height}-q${quality}-${fit}-${pos}.${format}`;
   const uploadCmd = new PutObjectCommand({
     Bucket: config.bucket.name,
     Key: key,
@@ -208,6 +208,8 @@ export const uploadImageToBucket = async (
       q: quality,
       key,
       ext: format as SupportedImageExtension,
+      fit,
+      pos: pos.replace(" ", "") as any,
     };
   } catch (e: any) {
     throw e;
