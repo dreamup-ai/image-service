@@ -122,13 +122,13 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         img = (await getImageFromBucket(version.key, "sharp")) as Sharp;
         return reply.type(`image/${ext}`).send(await img.toBuffer());
       } else {
-        const best = imgData.versions.reduce((prev, current) =>
+        version = imgData.versions.reduce((prev, current) =>
           prev.w > current.w && prev.q > current.q ? prev : current
         );
 
-        img = (await getImageFromBucket(best.key, "sharp")) as Sharp;
+        img = (await getImageFromBucket(version.key, "sharp")) as Sharp;
 
-        if (matchesRequest(best)) {
+        if (matchesRequest(version)) {
           console.log("returning best image");
           return reply.type(`image/${ext}`).send(await img.toBuffer());
         }
@@ -159,9 +159,11 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         resizeOptions.background = getRgba(bg);
       }
 
-      const asRequested = img
-        .resize(resizeOptions)
-        .toFormat(ext, { quality: q });
+      let asRequested = img.resize(resizeOptions);
+
+      if (ext !== version.ext || q !== version.q) {
+        asRequested = asRequested.toFormat(ext, { quality: q });
+      }
 
       reply.type(`image/${ext}`).send(await asRequested.toBuffer());
       version = await uploadImageToBucket(id, asRequested, q);

@@ -1,24 +1,24 @@
 import crypto from "node:crypto";
 
-import { FastifyInstance } from "fastify";
 import { Cache } from "dynamo-tools";
+import { FastifyInstance } from "fastify";
 import jwt from "jsonwebtoken";
 import sinon from "sinon";
 
+import { client as s3 } from "../src/clients/s3";
 import config from "../src/config";
 import { build } from "../src/server";
-import { client as s3 } from "../src/clients/s3";
 
-import { ListObjectsCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, ListObjectsCommand } from "@aws-sdk/client-s3";
 
 import {
-  createTable,
-  deleteTable,
   createBucket,
+  createTable,
   deleteBucket,
+  deleteTable,
 } from "../init-local-aws";
 
-export { createTable, deleteTable, createBucket, deleteBucket };
+export { createBucket, createTable, deleteBucket, deleteTable };
 
 const cache = new Cache({
   region: config.aws.region,
@@ -32,23 +32,28 @@ export const clearTable = async () => {
 };
 
 export const clearBucket = async () => {
-  const { Contents } = await s3.send(
-    new ListObjectsCommand({
-      Bucket: config.bucket.name,
-    })
-  );
-  if (Contents) {
-    await Promise.all(
-      Contents.map((c) =>
-        s3.send(
-          new DeleteObjectCommand({
-            Bucket: config.bucket.name,
-            Key: c.Key,
-          })
-        )
-      )
+  let contents;
+  do {
+    const { Contents } = await s3.send(
+      new ListObjectsCommand({
+        Bucket: config.bucket.name,
+      })
     );
-  }
+
+    contents = Contents || [];
+    if (Contents && Contents.length > 0) {
+      await Promise.all(
+        Contents.map((c) =>
+          s3.send(
+            new DeleteObjectCommand({
+              Bucket: config.bucket.name,
+              Key: c.Key,
+            })
+          )
+        )
+      );
+    }
+  } while (contents.length > 0);
 };
 
 let server: FastifyInstance;
