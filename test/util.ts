@@ -32,7 +32,10 @@ export const writeOutputImage = async (image: Sharp, url: string) => {
   let [filename, params] = resourceId.split("?");
   let [imageId, ext] = filename.split(".");
   fs.writeFileSync(
-    path.join(TEST_OUTPUT_DIR, `${imageId}_${params || ""}.${ext}`),
+    path.join(
+      TEST_OUTPUT_DIR,
+      `${imageId}${params ? "_" : ""}${params || ""}.${ext}`
+    ),
     await image.toBuffer()
   );
 };
