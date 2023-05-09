@@ -1,5 +1,5 @@
 # image-service
-A service for managing images in dreamup.ai
+A service for managing images in dreamup.ai. It provides a REST API for uploading and downloading images, and supports features such as on-the-fly reformating and resizing. It also acts as a read-through cache for web images, in order to reduce the load on upstream (often public) image servers.
 
 ## Docs
 
