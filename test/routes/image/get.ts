@@ -5,7 +5,12 @@ import sharp, { Sharp } from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { createNewImageInDb, uploadImageToBucket } from "../../../src/crud";
 import { Image } from "../../../src/types";
-import { clearBucket, clearTable, getServer } from "../../util";
+import {
+  clearBucket,
+  clearTable,
+  getServer,
+  writeOutputImage,
+} from "../../util";
 
 import fs from "node:fs";
 const imageBuff = fs.readFileSync("test/fixtures/plant.png");
@@ -15,6 +20,8 @@ describe("GET /image/:id.:ext", () => {
   let dbImage: Image;
   let ogImage: Sharp;
   let ogMeta: sharp.Metadata;
+  let image: Sharp | undefined;
+  let url: string | undefined;
 
   before(async () => {
     server = await getServer();
@@ -23,6 +30,8 @@ describe("GET /image/:id.:ext", () => {
   beforeEach(async () => {
     await clearTable();
     await clearBucket();
+    image = undefined;
+    url = undefined;
 
     ogImage = sharp(imageBuff);
     ogMeta = await ogImage.metadata();
@@ -38,16 +47,23 @@ describe("GET /image/:id.:ext", () => {
     );
   });
 
+  afterEach(async () => {
+    if (image && url) {
+      await writeOutputImage(image, url);
+    }
+  });
+
   it("should return 200 with the image if requested version exists", async () => {
+    url = `/image/${dbImage.id}.png`;
     const res = await server.inject({
       method: "GET",
-      url: `/image/${dbImage.id}.png`,
+      url,
     });
 
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    const image = sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -64,15 +80,16 @@ describe("GET /image/:id.:ext", () => {
   });
 
   it("should return 200 with the image in a different format when requested", async () => {
+    url = `/image/${dbImage.id}.webp`;
     const res = await server.inject({
       method: "GET",
-      url: `/image/${dbImage.id}.webp`,
+      url,
     });
 
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/webp");
 
-    const image = sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -82,15 +99,16 @@ describe("GET /image/:id.:ext", () => {
   });
 
   it("should return 200 with the image resized to the requested width, preserving aspect ratio", async () => {
+    url = `/image/${dbImage.id}.png?w=${ogMeta.width! / 2}`;
     const res = await server.inject({
       method: "GET",
-      url: `/image/${dbImage.id}.png?w=${ogMeta.width! / 2}`,
+      url,
     });
 
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    const image = sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -100,15 +118,16 @@ describe("GET /image/:id.:ext", () => {
   });
 
   it("should return 200 with the image resized to the requested height, preserving aspect ratio", async () => {
+    url = `/image/${dbImage.id}.png?h=${ogMeta.height! / 2}`;
     const res = await server.inject({
       method: "GET",
-      url: `/image/${dbImage.id}.png?h=${ogMeta.height! / 2}`,
+      url,
     });
 
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    const image = sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -118,15 +137,16 @@ describe("GET /image/:id.:ext", () => {
   });
 
   it("should return 200 with the image resized to the requested quality", async () => {
+    url = `/image/${dbImage.id}.png?q=50`;
     const res = await server.inject({
       method: "GET",
-      url: `/image/${dbImage.id}.png?q=50`,
+      url,
     });
 
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    const image = sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -134,6 +154,51 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.height).to.equal(ogMeta.height);
     expect(meta.format).to.equal("png");
     expect(meta.size).to.be.lessThan(ogMeta.size!);
+  });
+
+  it("should return 200 with an image with the correct dimensions when w, h, and fit=contain are provided", async () => {
+    url = `/image/${dbImage.id}.png?w=500&h=500&fit=contain`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    image = await sharp(res.rawPayload);
+    const metadata = await image.metadata();
+
+    expect(metadata.width).to.equal(500);
+    expect(metadata.height).to.equal(500);
+  });
+
+  it("should return 200 and preserve aspect ratio when using fit=inside", async () => {
+    url = `/image/${dbImage.id}.png?w=500&h=500&fit=inside`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    image = sharp(res.rawPayload);
+    const metadata = await image.metadata();
+
+    const expectedAspectRatio = ogMeta.width! / ogMeta.height!;
+
+    /**
+     * The example image is portrait, so width will be lower than height.
+     */
+    expect(metadata.width).to.equal(expectedAspectRatio * 500);
+    expect(metadata.height).to.equal(500);
+    expect(metadata.format).to.equal("png");
+    expect(metadata.size).to.be.lessThan(ogMeta.size!);
+    expect(metadata.width! / metadata.height!).to.be.closeTo(
+      expectedAspectRatio,
+      0.01
+    );
   });
 
   it("should return 404 if the image does not exist", async () => {

@@ -10,7 +10,10 @@ import config from "../src/config";
 import { build } from "../src/server";
 
 import { DeleteObjectCommand, ListObjectsCommand } from "@aws-sdk/client-s3";
+import fs from "node:fs/promises";
+import path from "node:path";
 
+import { Sharp } from "sharp";
 import {
   createBucket,
   createTable,
@@ -19,6 +22,18 @@ import {
 } from "../init-local-aws";
 
 export { createBucket, createTable, deleteBucket, deleteTable };
+
+const { TEST_OUTPUT_DIR = "test-output-images" } = process.env;
+
+export const writeOutputImage = async (image: Sharp, url: string) => {
+  let resourceId = url.split("/").pop()!;
+  let [filename, params] = resourceId.split("?");
+  let [imageId, ext] = filename.split(".");
+  await fs.writeFile(
+    path.join(TEST_OUTPUT_DIR, `${imageId}_${params || ""}.${ext}`),
+    await image.toBuffer()
+  );
+};
 
 const cache = new Cache({
   region: config.aws.region,

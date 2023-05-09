@@ -104,3 +104,5 @@ volume/
 
 # dotenv environment variables file
 .env*.local
+
+test-output-images/

@@ -40,7 +40,7 @@ const getRgba = (color: string = "") => {
       r: Number(r),
       g: Number(g),
       b: Number(b),
-      a: 1,
+      alpha: 1,
     };
   }
   match = rgbaRegex.exec(color);
@@ -50,14 +50,14 @@ const getRgba = (color: string = "") => {
       r: Number(r),
       g: Number(g),
       b: Number(b),
-      a: Number(a),
+      alpha: Number(a),
     };
   }
   return {
     r: 0,
     g: 0,
     b: 0,
-    a: 0,
+    alpha: 0,
   };
 };
 

@@ -1,14 +1,3 @@
-import config from "./config";
-import {
-  Image,
-  ImageVersion,
-  SupportedImageExtension,
-  supportedInputImageExtensions,
-} from "./types";
-import { sendWebhook } from "./webhooks";
-import { FastifyBaseLogger } from "fastify";
-import { client as dynamo } from "./clients/dynamo";
-import { client as s3 } from "./clients/s3";
 import {
   DeleteItemCommand,
   GetItemCommand,
@@ -16,15 +5,21 @@ import {
   QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { v4 as uuidv4 } from "uuid";
-import { Item } from "dynamo-tools";
-import sharp, { Sharp } from "sharp";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { Item } from "dynamo-tools";
+import { FastifyBaseLogger } from "fastify";
+import sharp, { Sharp } from "sharp";
 import internal from "stream";
+import { v4 as uuidv4 } from "uuid";
+import { client as dynamo } from "./clients/dynamo";
+import { client as s3 } from "./clients/s3";
+import config from "./config";
+import { Image, ImageVersion, SupportedImageExtension } from "./types";
+import { sendWebhook } from "./webhooks";
 
 const { imageTable } = config.db;
 
@@ -163,7 +158,29 @@ export const deleteImageFromDb = async (
 export const uploadImageToBucket = async (
   id: string,
   image: Sharp,
-  quality: number = 100
+  quality: number = 100,
+  fit: "cover" | "contain" | "fill" | "inside" | "outside" = "cover",
+  pos:
+    | "top"
+    | "right top"
+    | "right"
+    | "right bottom"
+    | "bottom"
+    | "left bottom"
+    | "left"
+    | "left top"
+    | "north"
+    | "northeast"
+    | "east"
+    | "southeast"
+    | "south"
+    | "southwest"
+    | "west"
+    | "northwest"
+    | "center"
+    | "centre"
+    | "entropy"
+    | "attention" = "center"
 ): Promise<ImageVersion> => {
   const buffer = await image.toBuffer();
   const meta = await image.metadata();
