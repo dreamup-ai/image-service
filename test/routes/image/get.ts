@@ -81,7 +81,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("webp");
   });
 
-  it("should return 200 with the image in a different size when requested, preserving aspect ratio", async () => {
+  it("should return 200 with the image resized to the requested width, preserving aspect ratio", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${dbImage.id}.png?w=${ogMeta.width! / 2}`,
@@ -97,6 +97,43 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.width).to.equal(ogMeta.width! / 2);
     expect(meta.height).to.equal(ogMeta.height! / 2);
     expect(meta.format).to.equal("png");
+  });
+
+  it("should return 200 with the image resized to the requested height, preserving aspect ratio", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?h=${ogMeta.height! / 2}`,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    const image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width! / 2);
+    expect(meta.height).to.equal(ogMeta.height! / 2);
+    expect(meta.format).to.equal("png");
+  });
+
+  it("should return 200 with the image resized to the requested quality", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?q=50`,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    const image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("png");
+    expect(meta.size).to.be.lessThan(ogMeta.size!);
   });
 
   it("should return 404 if the image does not exist", async () => {
@@ -121,6 +158,51 @@ describe("GET /image/:id.:ext", () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${dbImage.id}.png?w=0`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested height is not a number", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?h=invalid-height`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested height is less than 1", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?h=0`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested quality is not a number", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?q=invalid-quality`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested quality is less than 1", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?q=0`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested quality is greater than 100", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?q=101`,
     });
 
     expect(res.statusCode).to.equal(400);
