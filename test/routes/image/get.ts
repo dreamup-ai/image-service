@@ -98,4 +98,31 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.height).to.equal(ogMeta.height! / 2);
     expect(meta.format).to.equal("png");
   });
+
+  it("should return 404 if the image does not exist", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: "/image/invalid-id",
+    });
+
+    expect(res.statusCode).to.equal(404);
+  });
+
+  it("should return 400 if the requested width is not a number", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?w=invalid-width`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested width is less than 1", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.png?w=0`,
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
 });
