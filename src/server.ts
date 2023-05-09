@@ -129,4 +129,4 @@ export const build = async (opts: FastifyServerOptions) => {
   return server;
 };
 
-export const start = async (server: FastifyInstance) => { };
+export const start = async (server: FastifyInstance) => {};

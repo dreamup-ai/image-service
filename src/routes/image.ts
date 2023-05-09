@@ -8,7 +8,7 @@ import {
   getImageFromBucket,
   getImageFromDbById,
   getImageFromDbByUrl,
-  uploadImageToBucket
+  uploadImageToBucket,
 } from "../crud";
 import {
   dreamupInternal,
@@ -30,7 +30,7 @@ import {
 } from "../types";
 
 const rgbaRegex = /^rgba\((\d{1,3}),(\d{1,3}),(\d{1,3}),(\d\.?\d?)\)$/i;
-const rgbRegex = /^rgb\((\d{1,3}),(\d{1,3}),(\d{1,3})\)$/i
+const rgbRegex = /^rgb\((\d{1,3}),(\d{1,3}),(\d{1,3})\)$/i;
 
 const getRgba = (color: string = "") => {
   let match = rgbRegex.exec(color);
@@ -41,7 +41,7 @@ const getRgba = (color: string = "") => {
       g: Number(g),
       b: Number(b),
       a: 1,
-    }
+    };
   }
   match = rgbaRegex.exec(color);
   if (match) {
@@ -51,15 +51,15 @@ const getRgba = (color: string = "") => {
       g: Number(g),
       b: Number(b),
       a: Number(a),
-    }
+    };
   }
   return {
     r: 0,
     g: 0,
     b: 0,
     a: 0,
-  }
-}
+  };
+};
 
 const routes = (fastify: FastifyInstance, _: any, done: Function) => {
   /**
@@ -108,15 +108,14 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       let version: ImageVersion | undefined;
       let img: Sharp | undefined;
 
-      const matchesRequest = (v: ImageVersion) => (v.w === w || w === undefined)
-        && (v.h === h || h === undefined)
-        && (v.q === q || q === undefined)
-        && v.ext === ext
+      const matchesRequest = (v: ImageVersion) =>
+        (v.w === w || w === undefined) &&
+        (v.h === h || h === undefined) &&
+        (v.q === q || q === undefined) &&
+        v.ext === ext;
 
       if (w || h || q) {
-        version = imgData.versions.find(
-          matchesRequest
-        );
+        version = imgData.versions.find(matchesRequest);
       }
 
       if (version) {
@@ -144,11 +143,15 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       const resizeOptions: sharp.ResizeOptions = {
         width: w,
         height: h,
-        fit: fit || "cover" as any,
-        kernel: kernel || "lanczos3" as any,
-      }
+        fit: fit || ("cover" as any),
+        kernel: kernel || ("lanczos3" as any),
+      };
 
-      if (pos && resizeOptions.fit && ["cover", "container"].includes(resizeOptions.fit)) {
+      if (
+        pos &&
+        resizeOptions.fit &&
+        ["cover", "container"].includes(resizeOptions.fit)
+      ) {
         resizeOptions.position = pos as any;
       }
 

@@ -129,7 +129,7 @@ export const imageQueryParamsSchema = {
       minimum: 1,
       maximum: 100,
       description: "The quality of the image, for formats which support it",
-      default: 100
+      default: 100,
     },
     fit: {
       type: "string",
@@ -190,8 +190,10 @@ export const imageQueryParamsSchema = {
     },
     bg: {
       type: "string",
-      description: "The background colour to use when using a fit of \`cover\` or \`contain\`. Should be in rgb(r,g,b) or rgba(r,g,b,a) format.",
-      pattern: "^rgba\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3}),(\\d\.?\\d?)\\)$|^rgb\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)$",
+      description:
+        "The background colour to use when using a fit of `cover` or `contain`. Should be in rgb(r,g,b) or rgba(r,g,b,a) format.",
+      pattern:
+        "^rgba\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3}),(\\d.?\\d?)\\)$|^rgb\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)$",
       default: "rgba(0,0,0,0)",
     },
     kernel: {
@@ -199,7 +201,7 @@ export const imageQueryParamsSchema = {
       description: "The kernel to use for image reduction.",
       enum: ["nearest", "cubic", "mitchell", "lanczos2", "lanczos3"],
       default: "lanczos3",
-    }
+    },
   },
 } as const satisfies JSONSchema7;
 
