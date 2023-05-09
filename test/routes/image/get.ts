@@ -166,7 +166,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    image = await sharp(res.rawPayload);
+    image = sharp(res.rawPayload);
     const metadata = await image.metadata();
 
     expect(metadata.width).to.equal(500);
