@@ -1,31 +1,17 @@
-import crypto from "crypto";
 import { FastifyInstance } from "fastify";
 import sharp, { Sharp } from "sharp";
-import { v4 as uuidv4 } from "uuid";
 import {
-  addNewImageVersionToDb,
-  createNewImageInDb,
-  getImageFromBucket,
-  getImageFromDbById,
-  getImageFromDbByUrl,
+  getBestImageByID,
+  getImageFromBucketByKey,
+  getKeyForImage,
   uploadImageToBucket,
 } from "../crud";
 import {
-  dreamupInternal,
-  dreamupUserSession,
-  either,
-} from "../middleware/audiences";
-import {
   ErrorResponse,
-  Image,
   ImageQueryParams,
-  ImageUpload,
   ImageUrl,
-  ImageVersion,
   errorResponseSchema,
   imageQueryParamsSchema,
-  imageSchema,
-  imageUploadSchema,
   imageUrlSchema,
 } from "../types";
 
@@ -126,84 +112,103 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     },
     async (req, reply) => {
       const { id, ext } = req.params;
-      const { w, h, q, fit, pos, bg, kernel } = req.query;
+      const { w, width, h, height, q, quality, fit, pos, bg, kernel } =
+        req.query;
 
-      const imgData = await getImageFromDbById(id, fastify.log);
-      if (!imgData) {
-        return reply.code(404).send({
-          error: "Image not found",
-        });
-      }
+      const user = req.user?.userId || "SYSTEM";
 
-      let version: ImageVersion | undefined;
-      let img: Sharp | undefined;
+      const requestedImageParams = {
+        width: w || width,
+        height: h || height,
+        quality: q || quality,
+        fit,
+        pos: pos ? normalizePosition(pos) : (undefined as any),
+        bg,
+        kernel,
+        format: ext,
+      };
 
-      const matchesRequest = (v: ImageVersion) =>
-        (v.w === w || w === undefined) &&
-        (v.h === h || h === undefined) &&
-        (v.q === q || q === undefined) &&
-        v.ext === ext;
+      const key = getKeyForImage(user, id, requestedImageParams);
 
-      if (w || h || q) {
-        version = imgData.versions.find(matchesRequest);
-      }
+      // console.log("REQUESTED KEY", key);
 
-      if (version) {
-        img = (await getImageFromBucket(version.key, "sharp")) as Sharp;
+      try {
+        const img = (await getImageFromBucketByKey(key, "sharp")) as Sharp;
+        // console.log("Image exists in bucket, sending back to user");
         return reply.type(`image/${ext}`).send(await img.toBuffer());
-      } else {
-        version = imgData.versions.reduce((prev, current) =>
-          prev.w > current.w && prev.q > current.q ? prev : current
-        );
-
-        img = (await getImageFromBucket(version.key, "sharp")) as Sharp;
-
-        if (matchesRequest(version)) {
-          console.log("returning best image");
-          return reply.type(`image/${ext}`).send(await img.toBuffer());
+      } catch (e: any) {
+        if (e.name !== "ImageDoesNotExist") {
+          throw e;
         }
       }
 
-      if (!img) {
-        return reply.code(404).send({
-          error: "Image not found",
-        });
+      try {
+        const { img: best, params: bestParams } = await getBestImageByID(
+          user,
+          id
+        );
+        const bestMeta = await best.metadata();
+        const bestExt = bestMeta.format;
+
+        let toReturn = best;
+        let changed = false;
+
+        // Only resize if necessary
+        if (
+          (requestedImageParams.width &&
+            requestedImageParams.width < bestMeta.width!) ||
+          (requestedImageParams.height &&
+            requestedImageParams.height < bestMeta.height!)
+        ) {
+          const resizeOptions: sharp.ResizeOptions = {
+            width: w,
+            height: h,
+            fit: fit || ("cover" as any),
+            kernel: kernel || ("lanczos3" as any),
+          };
+          if (
+            pos &&
+            resizeOptions.fit &&
+            ["cover", "container"].includes(resizeOptions.fit)
+          ) {
+            resizeOptions.position = normalizePosition(pos);
+          }
+
+          if (bg && resizeOptions.fit === "contain") {
+            resizeOptions.background = getRgba(bg);
+          }
+
+          toReturn = best.resize(resizeOptions);
+          changed = true;
+        }
+
+        if (
+          (requestedImageParams.quality &&
+            requestedImageParams.quality < bestParams.quality!) ||
+          ext !== bestExt
+        ) {
+          toReturn = toReturn.toFormat(ext, {
+            quality: requestedImageParams.quality,
+          });
+          changed = true;
+        }
+
+        // Go ahead and send the image back to the user
+        reply.type(`image/${ext}`).send(await toReturn.toBuffer());
+
+        // And then only upload it if it's not already in the bucket
+        if (changed) {
+          await uploadImageToBucket(user, id, toReturn, requestedImageParams);
+        }
+      } catch (e: any) {
+        if (e.name === "ImageDoesNotExist") {
+          return reply.code(404).send({
+            error: "Image not found",
+          });
+        } else {
+          throw e;
+        }
       }
-
-      const resizeOptions: sharp.ResizeOptions = {
-        width: w,
-        height: h,
-        fit: fit || ("cover" as any),
-        kernel: kernel || ("lanczos3" as any),
-      };
-
-      if (
-        pos &&
-        resizeOptions.fit &&
-        ["cover", "container"].includes(resizeOptions.fit)
-      ) {
-        resizeOptions.position = normalizePosition(pos);
-      }
-
-      if (bg && resizeOptions.fit === "contain") {
-        resizeOptions.background = getRgba(bg);
-      }
-
-      let asRequested = img.resize(resizeOptions);
-
-      if (ext !== version.ext || q !== version.q) {
-        asRequested = asRequested.toFormat(ext, { quality: q });
-      }
-
-      reply.type(`image/${ext}`).send(await asRequested.toBuffer());
-      version = await uploadImageToBucket(
-        id,
-        asRequested,
-        q,
-        resizeOptions.fit,
-        pos ? normalizePosition(pos) : (undefined as any)
-      );
-      await addNewImageVersionToDb(id, version, fastify.log);
     }
   );
 
@@ -213,111 +218,113 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    * Upload a new image to the bucket, downloading it first if a url is provided.
    * Also accepts a base64 encoded image.
    */
-  fastify.post<{
-    Body: ImageUpload;
-    Response: Image | ErrorResponse;
-  }>(
-    "/image",
-    {
-      schema: {
-        body: imageUploadSchema,
-        response: {
-          200: imageSchema,
-        },
-      },
-      preValidation: [either(dreamupUserSession, dreamupInternal)],
-    },
-    async (req, reply) => {
-      const { url, image, force } = req.body;
+  // fastify.post<{
+  //   Body: ImageUpload;
+  //   Response: Image | ErrorResponse;
+  // }>(
+  //   "/image",
+  //   {
+  //     schema: {
+  //       body: imageUploadSchema,
+  //       response: {
+  //         200: {
+  //           description: "Ok",
+  //         },
+  //       },
+  //     },
+  //     preValidation: [either(dreamupUserSession, dreamupInternal)],
+  //   },
+  //   async (req, reply) => {
+  //     const { url, image, force } = req.body;
 
-      let img: Sharp | undefined;
-      let id: string | undefined;
-      if (url) {
-        const cachedImage = await getImageFromDbByUrl(url, fastify.log);
-        if (cachedImage && !force) {
-          return reply.code(200).send(cachedImage);
-        }
+  //     let img: Sharp | undefined;
+  //     let id: string | undefined;
+  //     if (url) {
+  //       const cachedImage = await getImageFromDbByUrl(url, fastify.log);
+  //       if (cachedImage && !force) {
+  //         return reply.code(200).send(cachedImage);
+  //       }
 
-        id = cachedImage?.id || uuidv4();
+  //       id = cachedImage?.id || uuidv4();
 
-        // download image with fetch
-        try {
-          const res = await fetch(url);
-          if (!res.ok) {
-            return reply.code(400).send({
-              error: "Invalid url",
-            });
-          }
-          const data = await res.arrayBuffer();
-          img = sharp(data);
-        } catch (e) {
-          fastify.log.error(e);
-          return reply.code(500).send({
-            error: "Error downloading image",
-          });
-        }
-      } else if (image) {
-        // decode base64 image
-        const imgBuff = Buffer.from(image, "base64");
+  //       // download image with fetch
+  //       try {
+  //         const res = await fetch(url);
+  //         if (!res.ok) {
+  //           return reply.code(400).send({
+  //             error: "Invalid url",
+  //           });
+  //         }
+  //         const data = await res.arrayBuffer();
+  //         img = sharp(data);
+  //       } catch (e) {
+  //         fastify.log.error(e);
+  //         return reply.code(500).send({
+  //           error: "Error downloading image",
+  //         });
+  //       }
+  //     } else if (image) {
+  //       // decode base64 image
+  //       const imgBuff = Buffer.from(image, "base64");
 
-        // Get sha of image
-        const sha = crypto.createHash("sha256", {
-          outputLength: 16,
-        });
-        sha.update(imgBuff);
-        id = sha.digest("base64");
+  //       // Get sha of image
+  //       const sha = crypto.createHash("sha256", {
+  //         outputLength: 16,
+  //       });
+  //       sha.update(imgBuff);
+  //       id = sha.digest("base64");
 
-        const cachedImage = await getImageFromDbById(id, fastify.log);
-        if (cachedImage && !force) {
-          return reply.code(200).send(cachedImage);
-        }
+  //       const cachedImage = await getImageFromDbById(id, fastify.log);
+  //       if (cachedImage && !force) {
+  //         return reply.code(200).send(cachedImage);
+  //       }
 
-        try {
-          img = sharp(imgBuff);
-        } catch (e) {
-          fastify.log.error(e);
-          return reply.code(400).send({
-            error: "Invalid base64 image",
-          });
-        }
-      }
+  //       try {
+  //         img = sharp(imgBuff);
+  //       } catch (e) {
+  //         fastify.log.error(e);
+  //         return reply.code(400).send({
+  //           error: "Invalid base64 image",
+  //         });
+  //       }
+  //     }
 
-      if (!img) {
-        return reply.code(400).send({
-          error: "No image provided",
-        });
-      }
+  //     if (!img) {
+  //       return reply.code(400).send({
+  //         error: "No image provided",
+  //       });
+  //     }
 
-      if (!id) {
-        id = uuidv4();
-      }
+  //     if (!id) {
+  //       id = uuidv4();
+  //     }
 
-      const newImageVersion = await uploadImageToBucket(id, img, 100);
+  //     const newImageVersion = await uploadImageToBucket(id, img, 100);
 
-      // Create a new image if we aren't working from a cache. If we are working from a cache,
-      // we only need to add the new version to the db, and then only if it doesn't already exist.
-      const newImageForDb: Image = {
-        id,
-        versions: [newImageVersion],
-        user: req.user?.userId || "internal",
-        url,
-      };
-      try {
-        const newImage = await createNewImageInDb(newImageForDb, fastify.log);
-        return reply.code(201).send(newImage);
-      } catch (e: any) {
-        if (e.name === "ImageAlreadyExists") {
-          return reply.code(409).send({
-            error: "Image already exists",
-          });
-        }
-        fastify.log.error(e);
-        return reply.code(500).send({
-          error: "Error creating image",
-        });
-      }
-    }
-  );
+  //     // Create a new image if we aren't working from a cache. If we are working from a cache,
+  //     // we only need to add the new version to the db, and then only if it doesn't already exist.
+  //     const newImageForDb: Image = {
+  //       id,
+  //       versions: [newImageVersion],
+  //       user: req.user?.userId || "internal",
+  //       url,
+  //     };
+  //     try {
+  //       const newImage = await createNewImageInDb(newImageForDb, fastify.log);
+  //       return reply.code(201).send(newImage);
+  //     } catch (e: any) {
+  //       if (e.name === "ImageAlreadyExists") {
+  //         return reply.code(409).send({
+  //           error: "Image already exists",
+  //         });
+  //       }
+  //       fastify.log.error(e);
+  //       return reply.code(500).send({
+  //         error: "Error creating image",
+  //       });
+  //     }
+  //   }
+  // );
 
   /**
    * DELETE /image/:id
