@@ -1,6 +1,6 @@
 import { FastifyBaseLogger } from "fastify";
-import config from "./config";
 import crypto from "node:crypto";
+import config from "./config";
 
 function sign(payload: string) {
   const signature = crypto.sign(
