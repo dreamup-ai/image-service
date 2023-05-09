@@ -1,12 +1,11 @@
 import { expect } from "chai";
 
-import config from "../../../src/config";
 import { FastifyInstance } from "fastify";
-import { Image } from "../../../src/types";
-import { clearBucket, clearTable, getServer } from "../../util";
-import { createNewImageInDb, uploadImageToBucket } from "../../../src/crud";
 import sharp, { Sharp } from "sharp";
 import { v4 as uuidv4 } from "uuid";
+import { createNewImageInDb, uploadImageToBucket } from "../../../src/crud";
+import { Image } from "../../../src/types";
+import { clearBucket, clearTable, getServer } from "../../util";
 
 import fs from "node:fs";
 const imageBuff = fs.readFileSync("test/fixtures/plant.png");
@@ -14,8 +13,8 @@ const imageBuff = fs.readFileSync("test/fixtures/plant.png");
 describe("GET /image/:id.:ext", () => {
   let server: FastifyInstance;
   let dbImage: Image;
-  let sharpImage: Sharp;
-  let sharpMeta: sharp.Metadata;
+  let ogImage: Sharp;
+  let ogMeta: sharp.Metadata;
 
   before(async () => {
     server = await getServer();
@@ -25,10 +24,10 @@ describe("GET /image/:id.:ext", () => {
     await clearTable();
     await clearBucket();
 
-    sharpImage = sharp(imageBuff);
-    sharpMeta = await sharpImage.metadata();
+    ogImage = sharp(imageBuff);
+    ogMeta = await ogImage.metadata();
 
-    const version = await uploadImageToBucket("test", sharpImage, 100);
+    const version = await uploadImageToBucket("test", ogImage, 100);
     dbImage = await createNewImageInDb(
       {
         id: uuidv4(),
@@ -48,7 +47,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(200);
     expect(res.headers["content-type"]).to.equal("image/png");
 
-    const image = sharp(res.rawPayload).png();
+    const image = sharp(res.rawPayload);
 
     const meta = await image.metadata();
 
@@ -59,8 +58,26 @@ describe("GET /image/:id.:ext", () => {
      * metadata.
      */
     expect({ ...meta, size: undefined }).to.deep.equal({
-      ...sharpMeta,
+      ...ogMeta,
       size: undefined,
     });
+  });
+
+  it("should return 200 with the image if requested version does not exist", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${dbImage.id}.webp`,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/webp");
+
+    const image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("webp");
   });
 });

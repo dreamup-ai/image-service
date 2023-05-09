@@ -1,11 +1,11 @@
-import * as dotenv from "dotenv";
-dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
-import config from "./config";
-import Fastify, { FastifyInstance, FastifyServerOptions } from "fastify";
-import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
 import cookie from "@fastify/cookie";
+import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
+import * as dotenv from "dotenv";
+import Fastify, { FastifyInstance, FastifyServerOptions } from "fastify";
+import config from "./config";
 import imageRoutes from "./routes/image";
 import { imageSchema } from "./types";
+dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
 
 export const build = async (opts: FastifyServerOptions) => {
   const server = Fastify(opts).withTypeProvider<JsonSchemaToTsProvider>();
@@ -129,4 +129,4 @@ export const build = async (opts: FastifyServerOptions) => {
   return server;
 };
 
-export const start = async (server: FastifyInstance) => {};
+export const start = async (server: FastifyInstance) => { };

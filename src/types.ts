@@ -112,6 +112,7 @@ export type ImageUrl = FromSchema<typeof imageUrlSchema>;
 
 export const imageQueryParamsSchema = {
   type: "object",
+  required: [],
   properties: {
     w: {
       type: "number",
@@ -127,12 +128,78 @@ export const imageQueryParamsSchema = {
       type: "number",
       minimum: 1,
       maximum: 100,
-      description: "The quality of the image",
+      description: "The quality of the image, for formats which support it",
+      default: 100
     },
-    ext: {
+    fit: {
       type: "string",
-      enum: supportedInputImageExtensions,
+      description: `When both a width and height are provided, the possible methods by which the image should fit these are:
+      - \`cover\` (default) Preserving aspect ratio, attempt to ensure the image covers both provided dimensions by cropping/clipping to fit.
+      - \`contain\` Preserving aspect ratio, contain within both provided dimensions using "letterboxing" where necessary.
+      - \`fill\` Ignore the aspect ratio of the input and stretch to both provided dimensions.
+      - \`inside\` Preserving aspect ratio, resize the image to be as large as possible while ensuring its dimensions are less than or equal to both those specified.
+      - \`outside\` Preserving aspect ratio, resize the image to be as small as possible while ensuring its dimensions are greater than or equal to both those specified.
+
+      See https://sharp.pixelplumbing.com/api-resize#resize for more information
+      `,
+      enum: ["cover", "contain", "fill", "inside", "outside"],
+      default: "cover",
     },
+    pos: {
+      type: "string",
+      description: `When both a width and height are provided, there are many possible ways to crop the image. The \`pos\` parameter controls how the image is cropped. The default is \`center\`.`,
+      enum: [
+        "top",
+        "righttop",
+        "right",
+        "rightbottom",
+        "bottom",
+        "leftbottom",
+        "left",
+        "lefttop",
+        "north",
+        "northeast",
+        "east",
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northwest",
+        "center",
+        "centre",
+        "rt",
+        "r",
+        "rb",
+        "b",
+        "lb",
+        "l",
+        "lt",
+        "n",
+        "ne",
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "c",
+        "entropy",
+        "attention",
+      ],
+      default: "center",
+    },
+    bg: {
+      type: "string",
+      description: "The background colour to use when using a fit of \`cover\` or \`contain\`. Should be in rgb(r,g,b) or rgba(r,g,b,a) format.",
+      pattern: "^rgba\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3}),(\\d\.?\\d?)\\)$|^rgb\\((\\d{1,3}),(\\d{1,3}),(\\d{1,3})\\)$",
+      default: "rgba(0,0,0,0)",
+    },
+    kernel: {
+      type: "string",
+      description: "The kernel to use for image reduction.",
+      enum: ["nearest", "cubic", "mitchell", "lanczos2", "lanczos3"],
+      default: "lanczos3",
+    }
   },
 } as const satisfies JSONSchema7;
 

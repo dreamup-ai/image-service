@@ -165,7 +165,7 @@ export const uploadImageToBucket = async (
   image: Sharp,
   quality: number = 100
 ): Promise<ImageVersion> => {
-  const buffer = await image.withMetadata().toBuffer();
+  const buffer = await image.toBuffer();
   const meta = await image.metadata();
   const { width, height, format } = meta;
 

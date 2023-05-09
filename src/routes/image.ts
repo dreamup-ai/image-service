@@ -1,32 +1,65 @@
+import crypto from "crypto";
 import { FastifyInstance } from "fastify";
+import sharp, { Sharp } from "sharp";
+import { v4 as uuidv4 } from "uuid";
+import {
+  addNewImageVersionToDb,
+  createNewImageInDb,
+  getImageFromBucket,
+  getImageFromDbById,
+  getImageFromDbByUrl,
+  uploadImageToBucket
+} from "../crud";
+import {
+  dreamupInternal,
+  dreamupUserSession,
+  either,
+} from "../middleware/audiences";
 import {
   ErrorResponse,
   Image,
   ImageQueryParams,
   ImageUpload,
   ImageUrl,
+  ImageVersion,
   errorResponseSchema,
   imageQueryParamsSchema,
   imageSchema,
   imageUploadSchema,
   imageUrlSchema,
 } from "../types";
-import {
-  getImageFromDbById,
-  getImageFromBucket,
-  uploadImageToBucket,
-  addNewImageVersionToDb,
-  createNewImageInDb,
-  getImageFromDbByUrl,
-} from "../crud";
-import sharp, { Sharp } from "sharp";
-import {
-  dreamupInternal,
-  either,
-  dreamupUserSession,
-} from "../middleware/audiences";
-import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto";
+
+const rgbaRegex = /^rgba\((\d{1,3}),(\d{1,3}),(\d{1,3}),(\d\.?\d?)\)$/i;
+const rgbRegex = /^rgb\((\d{1,3}),(\d{1,3}),(\d{1,3})\)$/i
+
+const getRgba = (color: string = "") => {
+  let match = rgbRegex.exec(color);
+  if (match) {
+    const [, r, g, b] = match;
+    return {
+      r: Number(r),
+      g: Number(g),
+      b: Number(b),
+      a: 1,
+    }
+  }
+  match = rgbaRegex.exec(color);
+  if (match) {
+    const [, r, g, b, a] = match;
+    return {
+      r: Number(r),
+      g: Number(g),
+      b: Number(b),
+      a: Number(a),
+    }
+  }
+  return {
+    r: 0,
+    g: 0,
+    b: 0,
+    a: 0,
+  }
+}
 
 const routes = (fastify: FastifyInstance, _: any, done: Function) => {
   /**
@@ -63,7 +96,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     },
     async (req, reply) => {
       const { id, ext } = req.params;
-      const { w, h, q } = req.query;
+      const { w, h, q, fit, pos, bg, kernel } = req.query;
 
       const imgData = await getImageFromDbById(id, fastify.log);
       if (!imgData) {
@@ -72,44 +105,64 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         });
       }
 
-      const version = imgData.versions.find(
-        (v) => v.w === w && v.h === h && v.q === q && v.ext === ext
-      );
+      let version: ImageVersion | undefined;
+      let img: Sharp | undefined;
 
-      if (!version) {
+      const matchesRequest = (v: ImageVersion) => (v.w === w || w === undefined)
+        && (v.h === h || h === undefined)
+        && (v.q === q || q === undefined)
+        && v.ext === ext
+
+      if (w || h || q) {
+        version = imgData.versions.find(
+          matchesRequest
+        );
+      }
+
+      if (version) {
+        img = (await getImageFromBucket(version.key, "sharp")) as Sharp;
+        return reply.type(`image/${ext}`).send(await img.toBuffer());
+      } else {
         const best = imgData.versions.reduce((prev, current) =>
           prev.w > current.w && prev.q > current.q ? prev : current
         );
 
-        const img = (await getImageFromBucket(best.key, "sharp")) as Sharp;
-        const ogMeta = await img.metadata();
+        img = (await getImageFromBucket(best.key, "sharp")) as Sharp;
 
-        if (
-          (w && w !== ogMeta.width) ||
-          (h && h !== ogMeta.height) ||
-          (q && q !== best.q)
-        ) {
-          const asRequested = img
-            .resize({
-              width: w,
-              height: h,
-              fit: "fill",
-            })
-            .toFormat(ext, { quality: q });
-
-          const newVersion = await uploadImageToBucket(id, asRequested, q);
-
-          await addNewImageVersionToDb(id, newVersion, fastify.log);
-          return reply
-            .type(`image/${ext}`)
-            .send(await asRequested.withMetadata().toBuffer());
-        } else {
+        if (matchesRequest(best)) {
+          console.log("returning best image");
           return reply.type(`image/${ext}`).send(await img.toBuffer());
         }
-      } else {
-        const img = await getImageFromBucket(version.key, "stream");
-        return reply.type(`image/${ext}`).send(img);
       }
+
+      if (!img) {
+        return reply.code(404).send({
+          error: "Image not found",
+        });
+      }
+
+      const resizeOptions: sharp.ResizeOptions = {
+        width: w,
+        height: h,
+        fit: fit || "cover" as any,
+        kernel: kernel || "lanczos3" as any,
+      }
+
+      if (pos && resizeOptions.fit && ["cover", "container"].includes(resizeOptions.fit)) {
+        resizeOptions.position = pos as any;
+      }
+
+      if (bg && resizeOptions.fit === "contain") {
+        resizeOptions.background = getRgba(bg);
+      }
+
+      const asRequested = img
+        .resize(resizeOptions)
+        .toFormat(ext, { quality: q });
+
+      reply.type(`image/${ext}`).send(await asRequested.toBuffer());
+      version = await uploadImageToBucket(id, asRequested, q);
+      await addNewImageVersionToDb(id, version, fastify.log);
     }
   );
 
