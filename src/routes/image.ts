@@ -97,7 +97,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     },
     async (req, reply) => {
       const { id, ext } = req.params;
-      const { w, width, h, height, q, quality, fit, pos, bg, kernel } =
+      const { w, width, h, height, fit, pos, bg, kernel, q, quality } =
         req.query;
 
       const user = req.user?.userId || "SYSTEM";
@@ -110,8 +110,10 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         pos: pos ? getFullPositionName(pos) : (undefined as any),
         bg,
         kernel,
-        format: ext,
+        format: getFormatFromExtension(ext),
       };
+
+      req.query.quality = requestedImageParams.quality;
 
       const key = getKeyForImage(user, id, requestedImageParams);
 
@@ -172,14 +174,16 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
             requestedImageParams.quality < bestParams.quality!) ||
           ext !== bestExt
         ) {
-          toReturn = toReturn.toFormat(ext, {
-            quality: requestedImageParams.quality,
-          });
+          const fmtParams = { ...req.query };
+          utilsByFormat[requestedImageParams.format].clean(fmtParams);
+          toReturn = toReturn.toFormat(ext, fmtParams);
           changed = true;
         }
 
         // Go ahead and send the image back to the user
-        reply.type(`image/${ext}`).send(await toReturn.toBuffer());
+        reply
+          .type(`image/${requestedImageParams.format}`)
+          .send(await toReturn.toBuffer());
 
         // And then only upload it if it's not already in the bucket
         if (changed) {

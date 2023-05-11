@@ -221,6 +221,7 @@ export const uploadImageToBucket = async (
   const buffer = await image.toBuffer();
   const meta = await image.metadata();
   const { width, height, format } = meta;
+  // console.log(meta);
 
   if (!width || !height || !format) {
     const err = new Error("Invalid image metadata");

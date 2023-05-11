@@ -1,7 +1,8 @@
 import Ajv from "ajv";
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
 
-const ajv = new Ajv();
+const laxValidator = new Ajv();
+const removeExtra = new Ajv({ removeAdditional: "all" });
 
 export const deletedResponseSchema = {
   type: "object",
@@ -436,7 +437,12 @@ export const jpegExportOptionsSchema = {
 
 export type JpegExportOptions = FromSchema<typeof jpegExportOptionsSchema>;
 
-export const validateJpegExportOptions = ajv.compile(jpegExportOptionsSchema);
+export const validateJpegExportOptions = laxValidator.compile(
+  jpegExportOptionsSchema
+);
+export const cleanJpegExportOptions = removeExtra.compile(
+  jpegExportOptionsSchema
+);
 
 export const pngExportOptionsSchema = {
   type: "object",
@@ -461,7 +467,7 @@ export const pngExportOptionsSchema = {
       type: "boolean",
       description:
         "Quantise to a palette-based image with alpha transparency support",
-      default: false,
+      default: true,
     },
     quality: imageQualitySchema,
     effort: {
@@ -485,7 +491,12 @@ export const pngExportOptionsSchema = {
 
 export type PngExportOptions = FromSchema<typeof pngExportOptionsSchema>;
 
-export const validatePngExportOptions = ajv.compile(pngExportOptionsSchema);
+export const validatePngExportOptions = laxValidator.compile(
+  pngExportOptionsSchema
+);
+export const cleanPngExportOptions = removeExtra.compile(
+  pngExportOptionsSchema
+);
 
 export const losslessCompressionSchema = {
   type: "boolean",
@@ -526,7 +537,12 @@ export const webpExportOptionsSchema = {
 
 export type WebpExportOptions = FromSchema<typeof webpExportOptionsSchema>;
 
-export const validateWebpExportOptions = ajv.compile(webpExportOptionsSchema);
+export const validateWebpExportOptions = laxValidator.compile(
+  webpExportOptionsSchema
+);
+export const cleanWebpExportOptions = removeExtra.compile(
+  webpExportOptionsSchema
+);
 
 export const tiffExportOptionsSchema = {
   type: "object",
@@ -602,7 +618,12 @@ export const tiffExportOptionsSchema = {
 
 export type TiffExportOptions = FromSchema<typeof tiffExportOptionsSchema>;
 
-export const validateTiffExportOptions = ajv.compile(tiffExportOptionsSchema);
+export const validateTiffExportOptions = laxValidator.compile(
+  tiffExportOptionsSchema
+);
+export const cleanTiffExportOptions = removeExtra.compile(
+  tiffExportOptionsSchema
+);
 
 export const avifExportOptionsSchema = {
   type: "object",
@@ -624,7 +645,12 @@ export const avifExportOptionsSchema = {
 
 export type AvifExportOptions = FromSchema<typeof avifExportOptionsSchema>;
 
-export const validateAvifExportOptions = ajv.compile(avifExportOptionsSchema);
+export const validateAvifExportOptions = laxValidator.compile(
+  avifExportOptionsSchema
+);
+export const cleanAvifExportOptions = removeExtra.compile(
+  avifExportOptionsSchema
+);
 
 export const rawExportOptionsSchema = {
   type: "object",
@@ -652,32 +678,44 @@ export const rawExportOptionsSchema = {
 
 export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
 
-export const validateRawExportOptions = ajv.compile(rawExportOptionsSchema);
+export const validateRawExportOptions = laxValidator.compile(
+  rawExportOptionsSchema
+);
+
+export const cleanRawExportOptions = removeExtra.compile(
+  rawExportOptionsSchema
+);
 
 export const utilsByFormat = {
   jpeg: {
     exportOptionsSchema: jpegExportOptionsSchema,
     validate: validateJpegExportOptions,
+    clean: cleanJpegExportOptions,
   },
   png: {
     exportOptionsSchema: pngExportOptionsSchema,
     validate: validatePngExportOptions,
+    clean: cleanPngExportOptions,
   },
   webp: {
     exportOptionsSchema: webpExportOptionsSchema,
     validate: validateWebpExportOptions,
+    clean: cleanWebpExportOptions,
   },
   tiff: {
     exportOptionsSchema: tiffExportOptionsSchema,
     validate: validateTiffExportOptions,
+    clean: cleanTiffExportOptions,
   },
   avif: {
     exportOptionsSchema: avifExportOptionsSchema,
     validate: validateAvifExportOptions,
+    clean: cleanAvifExportOptions,
   },
   raw: {
     exportOptionsSchema: rawExportOptionsSchema,
     validate: validateRawExportOptions,
+    clean: cleanRawExportOptions,
   },
 } as const;
 

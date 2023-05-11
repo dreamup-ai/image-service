@@ -51,6 +51,8 @@ export const clearTable = async () => {
   await cache.deleteAll({ table: config.db.imageTable });
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const clearBucket = async () => {
   let contents;
   do {
@@ -102,6 +104,13 @@ before(async () => {
 
 after(async () => {
   await deleteTable();
+
+  /**
+   * The server does image uploads after returning a response to the user, so tests complete
+   * we have to wait a moment for the uploads to complete, so we don't end up trying to delete
+   * a non-empty bucket
+   **/
+  await sleep(500);
   await clearBucket();
   await deleteBucket();
   sandbox.restore();
