@@ -9,6 +9,7 @@ const {
   DYNAMODB_ENDPOINT,
   S3_ENDPOINT,
   IMAGE_TABLE,
+  URL_CACHE_TTL_SECONDS = "86400", // 1 day
   IMAGE_BUCKET,
   IMAGE_BUCKET_PREFIX = "",
   PORT = "3000",
@@ -44,6 +45,7 @@ type config = {
   };
   db: {
     imageTable: string;
+    urlCacheTTLSeconds: number;
   };
   bucket: {
     name: string;
@@ -82,6 +84,7 @@ const config: config = {
   },
   db: {
     imageTable: IMAGE_TABLE,
+    urlCacheTTLSeconds: parseInt(URL_CACHE_TTL_SECONDS, 10),
   },
   bucket: {
     name: IMAGE_BUCKET,

@@ -4,11 +4,12 @@ dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
 import {
   CreateTableCommand,
   DeleteTableCommand,
+  UpdateTimeToLiveCommand,
 } from "@aws-sdk/client-dynamodb";
-import config from "./src/config";
+import { CreateBucketCommand, DeleteBucketCommand } from "@aws-sdk/client-s3";
 import { client as dynamo } from "./src/clients/dynamo";
 import { client as s3 } from "./src/clients/s3";
-import { CreateBucketCommand, DeleteBucketCommand } from "@aws-sdk/client-s3";
+import config from "./src/config";
 
 export const deleteTable = async () => {
   await dynamo.send(
@@ -25,43 +26,35 @@ export const createTable = async () => {
         TableName: config.db.imageTable,
         AttributeDefinitions: [
           {
-            AttributeName: "id",
+            AttributeName: "url",
             AttributeType: "S",
           },
           {
-            AttributeName: "user",
-            AttributeType: "S",
-          },
-          {
-            AttributeName: "created",
+            AttributeName: "exp",
             AttributeType: "N",
           },
         ],
         KeySchema: [
           {
-            AttributeName: "id",
+            AttributeName: "url",
             KeyType: "HASH",
           },
-        ],
-        GlobalSecondaryIndexes: [
           {
-            IndexName: "user",
-            KeySchema: [
-              {
-                AttributeName: "user",
-                KeyType: "HASH",
-              },
-              {
-                AttributeName: "created",
-                KeyType: "RANGE",
-              },
-            ],
-            Projection: {
-              ProjectionType: "ALL",
-            },
+            AttributeName: "exp",
+            KeyType: "RANGE",
           },
         ],
         BillingMode: "PAY_PER_REQUEST",
+      })
+    );
+
+    await dynamo.send(
+      new UpdateTimeToLiveCommand({
+        TableName: config.db.imageTable,
+        TimeToLiveSpecification: {
+          AttributeName: "exp",
+          Enabled: true,
+        },
       })
     );
   } catch (e: any) {

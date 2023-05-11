@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import Fastify, { FastifyInstance, FastifyServerOptions } from "fastify";
 import config from "./config";
 import imageRoutes from "./routes/image";
-import { imageSchema } from "./types";
+// import { imageSchema } from "./types";
 dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
 
 export const build = async (opts: FastifyServerOptions) => {
@@ -21,62 +21,62 @@ export const build = async (opts: FastifyServerOptions) => {
         description: "API for Dreamup Image Management",
         version: config.server.version,
       },
-      webhooks: {
-        "image.created": {
-          description: "image created",
-          post: {
-            requestBody: {
-              description: "image created",
-              content: {
-                "application/json": {
-                  schema: imageSchema,
-                },
-              },
-            },
-            responses: {
-              "200": {
-                description: "Return a 200 status to acknowledge the webhook",
-              },
-            },
-          },
-        },
-        "image.updated": {
-          description: "image updated",
-          post: {
-            requestBody: {
-              description: "Updated image",
-              content: {
-                "application/json": {
-                  schema: imageSchema,
-                },
-              },
-            },
-            responses: {
-              "200": {
-                description: "Return a 200 status to acknowledge the webhook",
-              },
-            },
-          },
-        },
-        "image.deleted": {
-          description: "image deleted",
-          post: {
-            requestBody: {
-              description: "Deleted image",
-              content: {
-                "application/json": {
-                  schema: imageSchema,
-                },
-              },
-            },
-            responses: {
-              "200": {
-                description: "Return a 200 status to acknowledge the webhook",
-              },
-            },
-          },
-        },
-      },
+      // webhooks: {
+      //   "image.created": {
+      //     description: "image created",
+      //     post: {
+      //       requestBody: {
+      //         description: "image created",
+      //         content: {
+      //           "application/json": {
+      //             schema: imageSchema,
+      //           },
+      //         },
+      //       },
+      //       responses: {
+      //         "200": {
+      //           description: "Return a 200 status to acknowledge the webhook",
+      //         },
+      //       },
+      //     },
+      //   },
+      //   "image.updated": {
+      //     description: "image updated",
+      //     post: {
+      //       requestBody: {
+      //         description: "Updated image",
+      //         content: {
+      //           "application/json": {
+      //             schema: imageSchema,
+      //           },
+      //         },
+      //       },
+      //       responses: {
+      //         "200": {
+      //           description: "Return a 200 status to acknowledge the webhook",
+      //         },
+      //       },
+      //     },
+      //   },
+      //   "image.deleted": {
+      //     description: "image deleted",
+      //     post: {
+      //       requestBody: {
+      //         description: "Deleted image",
+      //         content: {
+      //           "application/json": {
+      //             schema: imageSchema,
+      //           },
+      //         },
+      //       },
+      //       responses: {
+      //         "200": {
+      //           description: "Return a 200 status to acknowledge the webhook",
+      //         },
+      //       },
+      //     },
+      //   },
+      // },
 
       servers: [{ url: config.server.publicUrl }],
     },

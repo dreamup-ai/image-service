@@ -1,5 +1,7 @@
+import Ajv from "ajv";
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
-// import { Sharp, FormatEnum } from "sharp";
+
+const ajv = new Ajv();
 
 export const deletedResponseSchema = {
   type: "object",
@@ -77,21 +79,37 @@ export const supportedInputImageExtensions = [
 export type SupportedImageExtension =
   (typeof supportedInputImageExtensions)[number];
 
-export const supportedOutputImageExtensions = [
+export const outputImageFormats = [
   "jpeg",
   "png",
   "webp",
   "tiff",
-  "gif",
-  "jp2",
   "avif",
-  "heif",
-  "jxl",
   "raw",
+] as const;
+
+export type OutputImageFormat = (typeof outputImageFormats)[number];
+
+export const supportedOutputImageExtensions = [
+  ...outputImageFormats,
+  "jpg",
 ] as const;
 
 export type SupportedOutputImageExtension =
   (typeof supportedOutputImageExtensions)[number];
+
+export const extensionToFormatMap = {
+  jpg: "jpeg",
+} as const;
+
+export const getFormatFromExtension = (
+  ext: SupportedOutputImageExtension
+): OutputImageFormat => {
+  if (extensionToFormatMap.hasOwnProperty(ext)) {
+    return extensionToFormatMap[ext as keyof typeof extensionToFormatMap];
+  }
+  return ext as OutputImageFormat;
+};
 
 export const imageUrlSchema = {
   type: "object",
@@ -110,27 +128,65 @@ export const imageUrlSchema = {
 
 export type ImageUrl = FromSchema<typeof imageUrlSchema>;
 
-export const imageQueryParamsSchema = {
+export const imageUploadSchema = {
   type: "object",
+  properties: {
+    url: {
+      type: "string",
+      format: "uri",
+    },
+    image: {
+      type: "string",
+      format: "byte",
+      description: "The image to upload in base64 format",
+    },
+    force: {
+      type: "boolean",
+      default: false,
+      description:
+        "Re-upload the image, even if it's cached already. Only used in conjunction with the `url` field",
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageUpload = FromSchema<typeof imageUploadSchema>;
+
+export const cachedUrlSchema = {
+  type: "object",
+  required: ["url", "id", "exp"],
+  properties: {
+    url: {
+      type: "string",
+      format: "uri",
+      description: "The URL to the image",
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+      description: "The unique identifier for the image",
+    },
+    exp: {
+      type: "number",
+      description:
+        "The time at which the cached URL expires, expressed in SECONDS since the UNIX epoch",
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type CachedUrl = FromSchema<typeof cachedUrlSchema>;
+
+export const imageDimensionSchema = {
+  type: "number",
+  minimum: 1,
+} as const satisfies JSONSchema7;
+
+export const imageResizeOptionsSchema = {
+  type: "object",
+  description: "Options for resizing an image",
   required: [],
   properties: {
-    w: {
-      type: "number",
-      minimum: 1,
-      description: "The width of the image",
-    },
-    h: {
-      type: "number",
-      minimum: 1,
-      description: "The height of the image",
-    },
-    q: {
-      type: "number",
-      minimum: 1,
-      maximum: 100,
-      description: "The quality of the image, for formats which support it",
-      default: 100,
-    },
+    width: imageDimensionSchema,
+    height: imageDimensionSchema,
     fit: {
       type: "string",
       description: `When both a width and height are provided, the possible methods by which the image should fit these are:
@@ -167,22 +223,6 @@ export const imageQueryParamsSchema = {
         "northwest",
         "center",
         "centre",
-        "rt",
-        "r",
-        "rb",
-        "b",
-        "lb",
-        "l",
-        "lt",
-        "n",
-        "ne",
-        "e",
-        "se",
-        "s",
-        "sw",
-        "w",
-        "nw",
-        "c",
         "entropy",
         "attention",
       ],
@@ -205,70 +245,460 @@ export const imageQueryParamsSchema = {
   },
 } as const satisfies JSONSchema7;
 
-export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
+export type ImageResizeOptions = FromSchema<typeof imageResizeOptionsSchema>;
 
-export const imageVersionSchema = {
+export const imageQualitySchema = {
+  type: "number",
+  minimum: 1,
+  maximum: 100,
+  description: "The quality of the image.",
+  default: 100,
+} as const satisfies JSONSchema7;
+
+export type ImageQuality = FromSchema<typeof imageQualitySchema>;
+
+export const commonImageExportOptionsSchema = {
   type: "object",
-  description: "Describes a version of the image",
-  required: ["w", "h", "ext", "q", "key"],
+  description: "Options for exporting an image",
   properties: {
-    ...imageQueryParamsSchema.properties,
-    key: {
+    format: {
       type: "string",
-      description: "The key of the image in the image bucket",
+      enum: supportedOutputImageExtensions,
+    },
+    quality: imageQualitySchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type CommonImageExportOptions = FromSchema<
+  typeof commonImageExportOptionsSchema
+>;
+
+export const urlShortenOptionsSchema = {
+  type: "object",
+  description: "Options for shortening a URL",
+  required: [],
+  properties: {
+    pos: {
+      type: "string",
+      description: "Shortened versions of the position parameter",
+      enum: [
+        "rt",
+        "r",
+        "rb",
+        "b",
+        "lb",
+        "l",
+        "lt",
+        "n",
+        "ne",
+        "e",
+        "se",
+        "s",
+        "sw",
+        "w",
+        "nw",
+        "c",
+      ],
+    },
+    w: {
+      ...imageDimensionSchema,
+      description: "Shortened version of the width parameter",
+    },
+    h: {
+      ...imageDimensionSchema,
+      description: "Shortened version of the height parameter",
+    },
+    q: {
+      ...imageQualitySchema,
+      description: "Shortened version of the quality parameter",
     },
   },
 } as const satisfies JSONSchema7;
 
-export type ImageVersion = FromSchema<typeof imageVersionSchema>;
+export type UrlShortenOptions = FromSchema<typeof urlShortenOptionsSchema>;
 
-export const imageSchema = {
-  type: "object",
-  required: ["user", "versions"],
-  properties: {
-    id: {
-      type: "string",
-      format: "uuid",
-      description: "The unique identifier for the image",
-    },
-    user: {
-      type: "string",
-      format: "uuid",
-      description: "The unique identifier for the user that owns the image",
-    },
-    url: {
-      type: "string",
-      format: "uri",
-      description: "The URL to the image",
-    },
-    versions: {
-      type: "array",
-      items: imageVersionSchema,
-    },
-  },
+/**
+ * Map of shortened position options to their full names
+ */
+export const positionMap = {
+  righttop: "right top",
+  rightbottom: "right bottom",
+  leftbottom: "left bottom",
+  lefttop: "left top",
+  rt: "right top",
+  r: "right",
+  rb: "right bottom",
+  b: "bottom",
+  lb: "left bottom",
+  l: "left",
+  lt: "left top",
+  n: "north",
+  ne: "northeast",
+  e: "east",
+  se: "southeast",
+  s: "south",
+  sw: "southwest",
+  w: "west",
+  nw: "northwest",
+  c: "center",
+};
+
+export const getFullPositionName = (position: string) => {
+  if (positionMap.hasOwnProperty(position)) {
+    return positionMap[position as keyof typeof positionMap];
+  }
+  return position;
+};
+
+export const imageParamsSchema = {
+  allOf: [commonImageExportOptionsSchema, imageResizeOptionsSchema],
 } as const satisfies JSONSchema7;
 
-export type Image = FromSchema<typeof imageSchema>;
+export type ImageParams = FromSchema<typeof imageParamsSchema>;
 
-export const imageUploadSchema = {
+const allPosOptions = [
+  ...imageResizeOptionsSchema.properties.pos.enum,
+  ...urlShortenOptionsSchema.properties.pos.enum,
+];
+
+export const optimiseCodingSchema = {
+  type: "boolean",
+  description: "Optimise Huffman coding tables",
+  default: true,
+} as const satisfies JSONSchema7;
+
+export const optimiseScansSchema = {
+  type: "boolean",
+  description: "Optimise progressive scans, forces progressive",
+  default: false,
+} as const satisfies JSONSchema7;
+
+export const quantisationTableSchema = {
+  type: "integer",
+  description: "Quantization table to use, integer 0-8",
+  minimum: 0,
+  maximum: 8,
+  default: 0,
+} as const satisfies JSONSchema7;
+
+export const progressiveScanSchema = {
+  type: "boolean",
+  description: "Use progressive (interlace) scan",
+  default: false,
+} as const satisfies JSONSchema7;
+
+export const numColorsSchema = {
+  type: "integer",
+  description:
+    "Maximum number of palette entries to use. Sets palette to true.",
+  minimum: 2,
+  maximum: 256,
+} as const satisfies JSONSchema7;
+
+export const chromaSubsamplingSchema = {
+  type: "string",
+  description: "Set to '4:4:4' to prevent chroma subsampling",
+  default: "4:2:0",
+} as const satisfies JSONSchema7;
+
+export const jpegExportOptionsSchema = {
   type: "object",
+  description: "Options for exporting a JPEG image",
+  required: [],
   properties: {
-    url: {
-      type: "string",
-      format: "uri",
-    },
-    image: {
-      type: "string",
-      format: "byte",
-      description: "The image to upload in base64 format",
-    },
-    force: {
+    quality: imageQualitySchema,
+    progressive: progressiveScanSchema,
+    chromaSubsampling: chromaSubsamplingSchema,
+    optimiseCoding: optimiseCodingSchema,
+    optimizeCoding: optimiseCodingSchema,
+    mozjpeg: {
       type: "boolean",
-      default: false,
       description:
-        "Re-upload the image, even if it's cached already. Only used in conjunction with the `url` field",
+        "Use the MozJPEG defaults, equivalent to `{trellisQuantisation: true, overshootDeringing: true, optimiseScans: true, quantisationTable: 3}`",
+      default: false,
+    },
+    trellisQuantisation: {
+      type: "boolean",
+      description: "Apply trellis quantisation.",
+      default: false,
+    },
+    overshootDeringing: {
+      type: "boolean",
+      description: "Apply overshoot deringing.",
+      default: false,
+    },
+    optimiseScans: optimiseScansSchema,
+    optimizeScans: optimiseScansSchema,
+    quantisationTable: quantisationTableSchema,
+    quantizationTable: quantisationTableSchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type JpegExportOptions = FromSchema<typeof jpegExportOptionsSchema>;
+
+export const validateJpegExportOptions = ajv.compile(jpegExportOptionsSchema);
+
+export const pngExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a PNG image",
+  required: [],
+  properties: {
+    progressive: progressiveScanSchema,
+    compressionLevel: {
+      type: "integer",
+      description:
+        "zlib Compression level, 0 (fastest, largest) - 9 (slowest, smallest)",
+      minimum: 0,
+      maximum: 9,
+      default: 6,
+    },
+    adaptiveFiltering: {
+      type: "boolean",
+      description: "Use adaptive row filtering",
+      default: false,
+    },
+    palette: {
+      type: "boolean",
+      description:
+        "Quantise to a palette-based image with alpha transparency support",
+      default: false,
+    },
+    quality: imageQualitySchema,
+    effort: {
+      type: "integer",
+      description:
+        "CPU effort level, 1 (fastest) - 10 (slowest), sets palette to true",
+      minimum: 1,
+      maximum: 10,
+      default: 7,
+    },
+    colors: numColorsSchema,
+    colours: numColorsSchema,
+    dither: {
+      type: "number",
+      description: "Dithering level, 0 (none) - 1 (full). Sets palette to true",
+      minimum: 0,
+      maximum: 1,
     },
   },
 } as const satisfies JSONSchema7;
 
-export type ImageUpload = FromSchema<typeof imageUploadSchema>;
+export type PngExportOptions = FromSchema<typeof pngExportOptionsSchema>;
+
+export const validatePngExportOptions = ajv.compile(pngExportOptionsSchema);
+
+export const losslessCompressionSchema = {
+  type: "boolean",
+  description: "Use lossless compression",
+  default: false,
+} as const satisfies JSONSchema7;
+
+export const webpExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a WebP image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    alphaQuality: {
+      ...imageQualitySchema,
+      description: "Quality of alpha layer",
+    },
+    lossless: losslessCompressionSchema,
+    nearLossless: {
+      type: "boolean",
+      description: "Use near-lossless compression",
+      default: false,
+    },
+    smartSubsample: {
+      type: "boolean",
+      description: "use high quality chroma subsampling",
+      default: false,
+    },
+    effort: {
+      type: "integer",
+      description: "CPU effort level, 0 (fastest) - 6 (slowest)",
+      minimum: 0,
+      maximum: 6,
+      default: 4,
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type WebpExportOptions = FromSchema<typeof webpExportOptionsSchema>;
+
+export const validateWebpExportOptions = ajv.compile(webpExportOptionsSchema);
+
+export const tiffExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a TIFF image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    compression: {
+      type: "string",
+      description: "Compression type",
+      enum: [
+        "none",
+        "jpeg",
+        "lzw",
+        "deflate",
+        "packbits",
+        "ccittfax4",
+        "webp",
+        "zstd",
+        "jp2k",
+      ],
+      default: "jpeg",
+    },
+    predictor: {
+      type: "string",
+      description: "Compression predictor type",
+      enum: ["none", "horizontal", "float"],
+    },
+    pyramid: {
+      type: "boolean",
+      description: "write an image pyramid",
+      default: false,
+    },
+    tile: {
+      type: "boolean",
+      description: "write a tiled tiff",
+      default: false,
+    },
+    tileWidth: {
+      type: "integer",
+      description: "tile width",
+      default: 256,
+    },
+    tileHeight: {
+      type: "integer",
+      description: "tile height",
+      default: 256,
+    },
+    xres: {
+      type: "number",
+      description: "horizontal resolution in pixels per mm",
+      default: 1.0,
+    },
+    yres: {
+      type: "number",
+      description: "vertical resolution in pixels per mm",
+      default: 1.0,
+    },
+    resolutionUnit: {
+      type: "string",
+      description: "resolution unit",
+      enum: ["inch", "cm"],
+      default: "inch",
+    },
+    bitDepth: {
+      type: "integer",
+      description: "bit depth",
+      default: 8,
+      enum: [1, 2, 4, 8],
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type TiffExportOptions = FromSchema<typeof tiffExportOptionsSchema>;
+
+export const validateTiffExportOptions = ajv.compile(tiffExportOptionsSchema);
+
+export const avifExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting an AVIF image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    lossless: losslessCompressionSchema,
+    effort: {
+      type: "integer",
+      description: "CPU effort level, 0 (fastest) - 9 (slowest)",
+      minimum: 0,
+      maximum: 9,
+      default: 4,
+    },
+    chromaSubsampling: chromaSubsamplingSchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type AvifExportOptions = FromSchema<typeof avifExportOptionsSchema>;
+
+export const validateAvifExportOptions = ajv.compile(avifExportOptionsSchema);
+
+export const rawExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a RAW image",
+  required: [],
+  properties: {
+    depth: {
+      type: "string",
+      description: "Bit depth",
+      enum: [
+        "char",
+        "uchar",
+        "short",
+        "ushort",
+        "int",
+        "uint",
+        "float",
+        "complex",
+        "double",
+        "dpcomplex",
+      ],
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
+
+export const validateRawExportOptions = ajv.compile(rawExportOptionsSchema);
+
+export const utilsByFormat = {
+  jpeg: {
+    exportOptionsSchema: jpegExportOptionsSchema,
+    validate: validateJpegExportOptions,
+  },
+  png: {
+    exportOptionsSchema: pngExportOptionsSchema,
+    validate: validatePngExportOptions,
+  },
+  webp: {
+    exportOptionsSchema: webpExportOptionsSchema,
+    validate: validateWebpExportOptions,
+  },
+  tiff: {
+    exportOptionsSchema: tiffExportOptionsSchema,
+    validate: validateTiffExportOptions,
+  },
+  avif: {
+    exportOptionsSchema: avifExportOptionsSchema,
+    validate: validateAvifExportOptions,
+  },
+  raw: {
+    exportOptionsSchema: rawExportOptionsSchema,
+    validate: validateRawExportOptions,
+  },
+} as const;
+
+export const imageQueryParamsSchema = {
+  type: "object",
+  description: "Query parameters for fetching an image",
+  required: [],
+  properties: {
+    ...imageResizeOptionsSchema.properties,
+    ...urlShortenOptionsSchema.properties,
+    pos: {
+      ...imageResizeOptionsSchema.properties.pos,
+      enum: allPosOptions,
+    },
+    ...jpegExportOptionsSchema.properties,
+    ...pngExportOptionsSchema.properties,
+    ...webpExportOptionsSchema.properties,
+    ...tiffExportOptionsSchema.properties,
+    ...avifExportOptionsSchema.properties,
+    ...rawExportOptionsSchema.properties,
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
