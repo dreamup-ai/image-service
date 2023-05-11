@@ -82,9 +82,9 @@ export const supportedOutputImageExtensions = [
   "png",
   "webp",
   "jpg",
-  "jp2",
   "tiff",
   "avif",
+  "raw",
 ] as const;
 
 export type SupportedOutputImageExtension =
@@ -401,6 +401,12 @@ export const numColorsSchema = {
   maximum: 256,
 } as const satisfies JSONSchema7;
 
+export const chromaSubsamplingSchema = {
+  type: "string",
+  description: "Set to '4:4:4' to prevent chroma subsampling",
+  default: "4:2:0",
+} as const satisfies JSONSchema7;
+
 export const jpegExportOptionsSchema = {
   type: "object",
   description: "Options for exporting a JPEG image",
@@ -408,11 +414,7 @@ export const jpegExportOptionsSchema = {
   properties: {
     quality: imageQualitySchema,
     progressive: progressiveScanSchema,
-    chromaSubsampling: {
-      type: "string",
-      description: "Set to '4:4:4' to prevent chroma subsampling",
-      default: "4:2:0",
-    },
+    chromaSubsampling: chromaSubsamplingSchema,
     optimiseCoding: optimiseCodingSchema,
     optimizeCoding: optimiseCodingSchema,
     mozjpeg: {
@@ -487,6 +489,12 @@ export const pngExportOptionsSchema = {
 
 export type PngExportOptions = FromSchema<typeof pngExportOptionsSchema>;
 
+export const losslessCompressionSchema = {
+  type: "boolean",
+  description: "Use lossless compression",
+  default: false,
+} as const satisfies JSONSchema7;
+
 export const webpExportOptionsSchema = {
   type: "object",
   description: "Options for exporting a WebP image",
@@ -497,11 +505,7 @@ export const webpExportOptionsSchema = {
       ...imageQualitySchema,
       description: "Quality of alpha layer",
     },
-    lossless: {
-      type: "boolean",
-      description: "Use lossless compression",
-      default: false,
-    },
+    lossless: losslessCompressionSchema,
     nearLossless: {
       type: "boolean",
       description: "Use near-lossless compression",
@@ -523,3 +527,123 @@ export const webpExportOptionsSchema = {
 } as const satisfies JSONSchema7;
 
 export type WebpExportOptions = FromSchema<typeof webpExportOptionsSchema>;
+
+export const tiffExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a TIFF image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    compression: {
+      type: "string",
+      description: "Compression type",
+      enum: [
+        "none",
+        "jpeg",
+        "lzw",
+        "deflate",
+        "packbits",
+        "ccittfax4",
+        "webp",
+        "zstd",
+        "jp2k",
+      ],
+      default: "jpeg",
+    },
+    predictor: {
+      type: "string",
+      description: "Compression predictor type",
+      enum: ["none", "horizontal", "float"],
+    },
+    pyramid: {
+      type: "boolean",
+      description: "write an image pyramid",
+      default: false,
+    },
+    tile: {
+      type: "boolean",
+      description: "write a tiled tiff",
+      default: false,
+    },
+    tileWidth: {
+      type: "integer",
+      description: "tile width",
+      default: 256,
+    },
+    tileHeight: {
+      type: "integer",
+      description: "tile height",
+      default: 256,
+    },
+    xres: {
+      type: "number",
+      description: "horizontal resolution in pixels per mm",
+      default: 1.0,
+    },
+    yres: {
+      type: "number",
+      description: "vertical resolution in pixels per mm",
+      default: 1.0,
+    },
+    resolutionUnit: {
+      type: "string",
+      description: "resolution unit",
+      enum: ["inch", "cm"],
+      default: "inch",
+    },
+    bitDepth: {
+      type: "integer",
+      description: "bit depth",
+      default: 8,
+      enum: [1, 2, 4, 8],
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type TiffExportOptions = FromSchema<typeof tiffExportOptionsSchema>;
+
+export const avifExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting an AVIF image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    lossless: losslessCompressionSchema,
+    effort: {
+      type: "integer",
+      description: "CPU effort level, 0 (fastest) - 9 (slowest)",
+      minimum: 0,
+      maximum: 9,
+      default: 4,
+    },
+    chromaSubsampling: chromaSubsamplingSchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type AvifExportOptions = FromSchema<typeof avifExportOptionsSchema>;
+
+export const rawExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a RAW image",
+  required: [],
+  properties: {
+    depth: {
+      type: "string",
+      description: "Bit depth",
+      enum: [
+        "char",
+        "uchar",
+        "short",
+        "ushort",
+        "int",
+        "uint",
+        "float",
+        "complex",
+        "double",
+        "dpcomplex",
+      ],
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
