@@ -367,3 +367,66 @@ export const imageQueryParamsSchema = {
 } as const satisfies JSONSchema7;
 
 export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
+
+export const optimiseCodingSchema = {
+  type: "boolean",
+  description: "Optimise Huffman coding tables",
+  default: true,
+} as const satisfies JSONSchema7;
+
+export const optimiseScansSchema = {
+  type: "boolean",
+  description: "Optimise progressive scans, forces progressive",
+  default: false,
+} as const satisfies JSONSchema7;
+
+export const quantisationTableSchema = {
+  type: "integer",
+  description: "Quantization table to use, integer 0-8",
+  minimum: 0,
+  maximum: 8,
+  default: 0,
+} as const satisfies JSONSchema7;
+
+export const jpegExportOptionsSchema = {
+  type: "object",
+  description: "Options for exporting a JPEG image",
+  required: [],
+  properties: {
+    quality: imageQualitySchema,
+    progressive: {
+      type: "boolean",
+      description: "Use progressive (interlace) scan",
+      default: false,
+    },
+    chromaSubsampling: {
+      type: "string",
+      description: "Set to '4:4:4' to prevent chroma subsampling",
+      default: "4:2:0",
+    },
+    optimiseCoding: optimiseCodingSchema,
+    optimizeCoding: optimiseCodingSchema,
+    mozjpeg: {
+      type: "boolean",
+      description:
+        "Use the MozJPEG defaults, equivalent to `{trellisQuantisation: true, overshootDeringing: true, optimiseScans: true, quantisationTable: 3}`",
+      default: false,
+    },
+    trellisQuantisation: {
+      type: "boolean",
+      description: "Apply trellis quantisation.",
+      default: false,
+    },
+    overshootDeringing: {
+      type: "boolean",
+      description: "Apply overshoot deringing.",
+      default: false,
+    },
+    optimiseScans: optimiseScansSchema,
+    optimizeScans: optimiseScansSchema,
+    quantisationTable: quantisationTableSchema,
+    quantizationTable: quantisationTableSchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type JpegExportOptions = FromSchema<typeof jpegExportOptionsSchema>;
