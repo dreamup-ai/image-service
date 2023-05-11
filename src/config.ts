@@ -1,8 +1,9 @@
 import assert from "assert";
 import crypto from "crypto";
+import * as dotenv from "dotenv";
 import fs from "fs";
 import { version } from "../package.json";
-
+dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
 const {
   AWS_REGION,
   AWS_DEFAULT_REGION = "us-east-1",

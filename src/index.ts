@@ -1,7 +1,4 @@
-import * as dotenv from "dotenv";
-dotenv.config({ override: true, path: `./.env.${process.env.APP_ENV}` });
-
-import { start, build } from "./server";
+import { build, start } from "./server";
 
 build({ logger: true })
   .then((server) => start(server))

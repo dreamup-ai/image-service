@@ -4,7 +4,7 @@
   "description": "A service for managing images in the dreamup platform",
   "main": "dist/src/index.js",
   "scripts": {
-    "test": "npm run build && APP_ENV=test mocha --require dist/test/env.js --recursive dist/test",
+    "test": "npm run build && APP_ENV=test mocha --recursive dist/test",
     "build": "tsc",
     "start": "APP_ENV=local node dist/src/index.js",
     "init-local": "APP_ENV=local npx run-func dist/init-local-aws.js createTable && APP_ENV=local npx run-func dist/init-local-aws.js createBucket"
