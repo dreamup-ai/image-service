@@ -126,4 +126,14 @@ export const build = async (opts: FastifyServerOptions) => {
   return server;
 };
 
-export const start = async (server: FastifyInstance) => {};
+export const start = async (server: FastifyInstance) => {
+  try {
+    await server.listen({
+      port: config.server.port,
+      host: config.server.host,
+    });
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
+};
