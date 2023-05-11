@@ -11,9 +11,11 @@ import {
   ImageQueryParams,
   ImageUrl,
   errorResponseSchema,
+  getFormatFromExtension,
   getFullPositionName,
   imageQueryParamsSchema,
   imageUrlSchema,
+  utilsByFormat,
 } from "../types";
 
 const rgbaRegex = /^rgba\((\d{1,3}),(\d{1,3}),(\d{1,3}),(\d\.?\d?)\)$/i;
@@ -80,6 +82,18 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
           404: errorResponseSchema,
         },
       },
+      preValidation: [
+        async (req, reply) => {
+          const { ext } = req.params;
+          const { validate } = utilsByFormat[getFormatFromExtension(ext)];
+          if (!validate(req.query)) {
+            return reply.code(400).send({
+              error: "Query Validation Error",
+              errors: validate.errors?.map((e) => e.message) || [],
+            });
+          }
+        },
+      ],
     },
     async (req, reply) => {
       const { id, ext } = req.params;

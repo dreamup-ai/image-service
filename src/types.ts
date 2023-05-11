@@ -1,5 +1,7 @@
+import Ajv from "ajv";
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
-// import { Sharp, FormatEnum } from "sharp";
+
+const ajv = new Ajv();
 
 export const deletedResponseSchema = {
   type: "object",
@@ -77,14 +79,20 @@ export const supportedInputImageExtensions = [
 export type SupportedImageExtension =
   (typeof supportedInputImageExtensions)[number];
 
-export const supportedOutputImageExtensions = [
+export const outputImageFormats = [
   "jpeg",
   "png",
   "webp",
-  "jpg",
   "tiff",
   "avif",
   "raw",
+] as const;
+
+export type OutputImageFormat = (typeof outputImageFormats)[number];
+
+export const supportedOutputImageExtensions = [
+  ...outputImageFormats,
+  "jpg",
 ] as const;
 
 export type SupportedOutputImageExtension =
@@ -92,13 +100,15 @@ export type SupportedOutputImageExtension =
 
 export const extensionToFormatMap = {
   jpg: "jpeg",
-};
+} as const;
 
-export const getFormatFromExtension = (ext: SupportedOutputImageExtension) => {
+export const getFormatFromExtension = (
+  ext: SupportedOutputImageExtension
+): OutputImageFormat => {
   if (extensionToFormatMap.hasOwnProperty(ext)) {
     return extensionToFormatMap[ext as keyof typeof extensionToFormatMap];
   }
-  return ext;
+  return ext as OutputImageFormat;
 };
 
 export const imageUrlSchema = {
@@ -350,22 +360,6 @@ const allPosOptions = [
   ...imageResizeOptionsSchema.properties.pos.enum,
   ...urlShortenOptionsSchema.properties.pos.enum,
 ];
-export const imageQueryParamsSchema = {
-  type: "object",
-  description: "Query parameters for fetching an image",
-  required: [],
-  properties: {
-    ...imageResizeOptionsSchema.properties,
-    ...commonImageExportOptionsSchema.properties,
-    ...urlShortenOptionsSchema.properties,
-    pos: {
-      ...imageResizeOptionsSchema.properties.pos,
-      enum: allPosOptions,
-    },
-  },
-} as const satisfies JSONSchema7;
-
-export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
 
 export const optimiseCodingSchema = {
   type: "boolean",
@@ -442,6 +436,8 @@ export const jpegExportOptionsSchema = {
 
 export type JpegExportOptions = FromSchema<typeof jpegExportOptionsSchema>;
 
+export const validateJpegExportOptions = ajv.compile(jpegExportOptionsSchema);
+
 export const pngExportOptionsSchema = {
   type: "object",
   description: "Options for exporting a PNG image",
@@ -489,6 +485,8 @@ export const pngExportOptionsSchema = {
 
 export type PngExportOptions = FromSchema<typeof pngExportOptionsSchema>;
 
+export const validatePngExportOptions = ajv.compile(pngExportOptionsSchema);
+
 export const losslessCompressionSchema = {
   type: "boolean",
   description: "Use lossless compression",
@@ -527,6 +525,8 @@ export const webpExportOptionsSchema = {
 } as const satisfies JSONSchema7;
 
 export type WebpExportOptions = FromSchema<typeof webpExportOptionsSchema>;
+
+export const validateWebpExportOptions = ajv.compile(webpExportOptionsSchema);
 
 export const tiffExportOptionsSchema = {
   type: "object",
@@ -602,6 +602,8 @@ export const tiffExportOptionsSchema = {
 
 export type TiffExportOptions = FromSchema<typeof tiffExportOptionsSchema>;
 
+export const validateTiffExportOptions = ajv.compile(tiffExportOptionsSchema);
+
 export const avifExportOptionsSchema = {
   type: "object",
   description: "Options for exporting an AVIF image",
@@ -621,6 +623,8 @@ export const avifExportOptionsSchema = {
 } as const satisfies JSONSchema7;
 
 export type AvifExportOptions = FromSchema<typeof avifExportOptionsSchema>;
+
+export const validateAvifExportOptions = ajv.compile(avifExportOptionsSchema);
 
 export const rawExportOptionsSchema = {
   type: "object",
@@ -647,3 +651,54 @@ export const rawExportOptionsSchema = {
 } as const satisfies JSONSchema7;
 
 export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
+
+export const validateRawExportOptions = ajv.compile(rawExportOptionsSchema);
+
+export const utilsByFormat = {
+  jpeg: {
+    exportOptionsSchema: jpegExportOptionsSchema,
+    validate: validateJpegExportOptions,
+  },
+  png: {
+    exportOptionsSchema: pngExportOptionsSchema,
+    validate: validatePngExportOptions,
+  },
+  webp: {
+    exportOptionsSchema: webpExportOptionsSchema,
+    validate: validateWebpExportOptions,
+  },
+  tiff: {
+    exportOptionsSchema: tiffExportOptionsSchema,
+    validate: validateTiffExportOptions,
+  },
+  avif: {
+    exportOptionsSchema: avifExportOptionsSchema,
+    validate: validateAvifExportOptions,
+  },
+  raw: {
+    exportOptionsSchema: rawExportOptionsSchema,
+    validate: validateRawExportOptions,
+  },
+} as const;
+
+export const imageQueryParamsSchema = {
+  type: "object",
+  description: "Query parameters for fetching an image",
+  required: [],
+  properties: {
+    ...imageResizeOptionsSchema.properties,
+    ...urlShortenOptionsSchema.properties,
+    pos: {
+      ...imageResizeOptionsSchema.properties.pos,
+      enum: allPosOptions,
+    },
+    ...jpegExportOptionsSchema.properties,
+    ...pngExportOptionsSchema.properties,
+    ...webpExportOptionsSchema.properties,
+    ...tiffExportOptionsSchema.properties,
+    ...avifExportOptionsSchema.properties,
+    ...rawExportOptionsSchema.properties,
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
