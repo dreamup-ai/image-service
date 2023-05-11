@@ -86,7 +86,6 @@ export const outputImageFormats = [
   "webp",
   "tiff",
   "avif",
-  "raw",
 ] as const;
 
 export type OutputImageFormat = (typeof outputImageFormats)[number];
@@ -652,39 +651,39 @@ export const cleanAvifExportOptions = removeExtra.compile(
   avifExportOptionsSchema
 );
 
-export const rawExportOptionsSchema = {
-  type: "object",
-  description: "Options for exporting a RAW image",
-  required: [],
-  properties: {
-    depth: {
-      type: "string",
-      description: "Bit depth",
-      enum: [
-        "char",
-        "uchar",
-        "short",
-        "ushort",
-        "int",
-        "uint",
-        "float",
-        "complex",
-        "double",
-        "dpcomplex",
-      ],
-    },
-  },
-} as const satisfies JSONSchema7;
+// export const rawExportOptionsSchema = {
+//   type: "object",
+//   description: "Options for exporting a RAW image",
+//   required: [],
+//   properties: {
+//     depth: {
+//       type: "string",
+//       description: "Bit depth",
+//       enum: [
+//         "char",
+//         "uchar",
+//         "short",
+//         "ushort",
+//         "int",
+//         "uint",
+//         "float",
+//         "complex",
+//         "double",
+//         "dpcomplex",
+//       ],
+//     },
+//   },
+// } as const satisfies JSONSchema7;
 
-export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
+// export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
 
-export const validateRawExportOptions = laxValidator.compile(
-  rawExportOptionsSchema
-);
+// export const validateRawExportOptions = laxValidator.compile(
+//   rawExportOptionsSchema
+// );
 
-export const cleanRawExportOptions = removeExtra.compile(
-  rawExportOptionsSchema
-);
+// export const cleanRawExportOptions = removeExtra.compile(
+//   rawExportOptionsSchema
+// );
 
 export const utilsByFormat = {
   jpeg: {
@@ -712,11 +711,11 @@ export const utilsByFormat = {
     validate: validateAvifExportOptions,
     clean: cleanAvifExportOptions,
   },
-  raw: {
-    exportOptionsSchema: rawExportOptionsSchema,
-    validate: validateRawExportOptions,
-    clean: cleanRawExportOptions,
-  },
+  // raw: {
+  //   exportOptionsSchema: rawExportOptionsSchema,
+  //   validate: validateRawExportOptions,
+  //   clean: cleanRawExportOptions,
+  // },
 } as const;
 
 export const imageQueryParamsSchema = {
@@ -735,7 +734,7 @@ export const imageQueryParamsSchema = {
     ...webpExportOptionsSchema.properties,
     ...tiffExportOptionsSchema.properties,
     ...avifExportOptionsSchema.properties,
-    ...rawExportOptionsSchema.properties,
+    // ...rawExportOptionsSchema.properties,
   },
 } as const satisfies JSONSchema7;
 

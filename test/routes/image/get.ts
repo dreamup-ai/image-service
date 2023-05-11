@@ -92,7 +92,7 @@ describe("GET /image/:id.:ext", () => {
     });
   });
 
-  it("should return 200 with the image in a different format when requested", async () => {
+  it("should return 200 with the image in webp when requested", async () => {
     url = `/image/${imageId}.webp`;
     const res = await server.inject({
       method: "GET",
@@ -109,6 +109,65 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.width).to.equal(ogMeta.width);
     expect(meta.height).to.equal(ogMeta.height);
     expect(meta.format).to.equal("webp");
+  });
+
+  it("should return 200 with the image in jpeg when requested", async () => {
+    url = `/image/${imageId}.jpeg`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/jpeg");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("jpeg");
+  });
+
+  it("should return 200 with the image in tiff when requested", async () => {
+    url = `/image/${imageId}.tiff`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/tiff");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("tiff");
+  });
+
+  it("should return 200 with the image in avif when requested", async () => {
+    url = `/image/${imageId}.avif`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/avif");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+
+    // https://github.com/lovell/sharp/issues/2504
+    expect(meta.format).to.equal("heif");
   });
 
   it("should return 200 with the image resized to the requested width, preserving aspect ratio", async () => {
@@ -212,6 +271,25 @@ describe("GET /image/:id.:ext", () => {
       expectedAspectRatio,
       0.01
     );
+  });
+
+  it("should return 200 with the image in its original size if a larger size is requested", async () => {
+    url = `/image/${imageId}.png?w=10000`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("png");
   });
 
   it("should return 404 if the image does not exist", async () => {
