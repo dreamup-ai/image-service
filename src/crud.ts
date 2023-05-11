@@ -15,6 +15,7 @@ import {
   CachedUrl,
   ImageParams,
   SupportedOutputImageExtension,
+  coerceImageParams,
   supportedOutputImageExtensions,
 } from "./types";
 
@@ -200,8 +201,17 @@ export const getFilenameForImage = (
   id: string,
   params: ImageParams
 ): string => {
-  const { width, height, format, quality, fit, pos, kernel, bg } = params;
-  return `${id}_${width}x${height}-q${quality}-${fit}-${pos}-${kernel}-${bg}.${format}`;
+  return (
+    id +
+    "_" +
+    Object.keys(params)
+      .filter((k) => k != "format")
+      .sort()
+      .map((k) => `${k}:${params[k]}`)
+      .join("-") +
+    "." +
+    params.format
+  );
 };
 
 export const getKeyForImage = (
@@ -210,6 +220,26 @@ export const getKeyForImage = (
   params: ImageParams
 ): string => {
   return `${config.bucket.prefix}${user}/${getFilenameForImage(id, params)}`;
+};
+
+export const getParamsFromKey = (key: string): ImageParams => {
+  const keySplit = key.split(".");
+  const format = keySplit.pop();
+  const everythingBeforeFormat = keySplit.join(".");
+  const [, paramString] = everythingBeforeFormat.split("_");
+  const params = paramString.split("-").reduce(
+    (acc, cur) => {
+      const [key, value] = cur.split(":");
+      return { ...acc, [key]: value };
+    },
+    { format }
+  );
+  if (!coerceImageParams(params)) {
+    const err = new Error("Invalid image params");
+    err.name = "ImageParamsError";
+    throw err;
+  }
+  return params;
 };
 
 export const uploadImageToBucket = async (
@@ -313,26 +343,6 @@ export const getImageFromBucketByKey = async (
     }
     throw e;
   }
-};
-
-export const getParamsFromKey = (key: string): ImageParams => {
-  const [everythingBeforeFormat, format] = key.split(".");
-  const [, paramString] = everythingBeforeFormat.split("_");
-  const [widthByHeight, quality, fit, pos, kernel, bg] = paramString.split("-");
-  const [width, height] = widthByHeight.split("x");
-
-  const params: ImageParams = {
-    width: parseInt(width),
-    height: parseInt(height),
-    quality: parseInt(quality.replace("q", "")),
-    fit: fit as any,
-    pos: pos as any,
-    kernel: kernel as any,
-    bg: bg as any,
-    format: format as any,
-  };
-
-  return params;
 };
 
 export const getBestImageByID = async (

@@ -2,7 +2,12 @@ import Ajv from "ajv";
 import { FromSchema, JSONSchema7 } from "json-schema-to-ts";
 
 const laxValidator = new Ajv();
-const removeExtra = new Ajv({ removeAdditional: "all" });
+const cleanValidator = new Ajv({
+  removeAdditional: "all",
+});
+const coerceValidator = new Ajv({
+  coerceTypes: true,
+});
 
 export const deletedResponseSchema = {
   type: "object",
@@ -350,12 +355,6 @@ export const getFullPositionName = (position: string) => {
   return position;
 };
 
-export const imageParamsSchema = {
-  allOf: [commonImageExportOptionsSchema, imageResizeOptionsSchema],
-} as const satisfies JSONSchema7;
-
-export type ImageParams = FromSchema<typeof imageParamsSchema>;
-
 const allPosOptions = [
   ...imageResizeOptionsSchema.properties.pos.enum,
   ...urlShortenOptionsSchema.properties.pos.enum,
@@ -439,7 +438,7 @@ export type JpegExportOptions = FromSchema<typeof jpegExportOptionsSchema>;
 export const validateJpegExportOptions = laxValidator.compile(
   jpegExportOptionsSchema
 );
-export const cleanJpegExportOptions = removeExtra.compile(
+export const cleanJpegExportOptions = cleanValidator.compile(
   jpegExportOptionsSchema
 );
 
@@ -482,8 +481,9 @@ export const pngExportOptionsSchema = {
     dither: {
       type: "number",
       description: "Dithering level, 0 (none) - 1 (full). Sets palette to true",
-      minimum: 0,
-      maximum: 1,
+      minimum: 0.0,
+      maximum: 1.0,
+      default: 1.0,
     },
   },
 } as const satisfies JSONSchema7;
@@ -493,7 +493,7 @@ export type PngExportOptions = FromSchema<typeof pngExportOptionsSchema>;
 export const validatePngExportOptions = laxValidator.compile(
   pngExportOptionsSchema
 );
-export const cleanPngExportOptions = removeExtra.compile(
+export const cleanPngExportOptions = cleanValidator.compile(
   pngExportOptionsSchema
 );
 
@@ -539,7 +539,7 @@ export type WebpExportOptions = FromSchema<typeof webpExportOptionsSchema>;
 export const validateWebpExportOptions = laxValidator.compile(
   webpExportOptionsSchema
 );
-export const cleanWebpExportOptions = removeExtra.compile(
+export const cleanWebpExportOptions = cleanValidator.compile(
   webpExportOptionsSchema
 );
 
@@ -620,7 +620,7 @@ export type TiffExportOptions = FromSchema<typeof tiffExportOptionsSchema>;
 export const validateTiffExportOptions = laxValidator.compile(
   tiffExportOptionsSchema
 );
-export const cleanTiffExportOptions = removeExtra.compile(
+export const cleanTiffExportOptions = cleanValidator.compile(
   tiffExportOptionsSchema
 );
 
@@ -647,7 +647,7 @@ export type AvifExportOptions = FromSchema<typeof avifExportOptionsSchema>;
 export const validateAvifExportOptions = laxValidator.compile(
   avifExportOptionsSchema
 );
-export const cleanAvifExportOptions = removeExtra.compile(
+export const cleanAvifExportOptions = cleanValidator.compile(
   avifExportOptionsSchema
 );
 
@@ -739,3 +739,18 @@ export const imageQueryParamsSchema = {
 } as const satisfies JSONSchema7;
 
 export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
+
+export const imageParamsSchema = {
+  allOf: [
+    imageResizeOptionsSchema,
+    jpegExportOptionsSchema,
+    pngExportOptionsSchema,
+    webpExportOptionsSchema,
+    tiffExportOptionsSchema,
+    avifExportOptionsSchema,
+  ],
+} as const satisfies JSONSchema7;
+
+export type ImageParams = FromSchema<typeof imageParamsSchema>;
+
+export const coerceImageParams = coerceValidator.compile(imageParamsSchema);
