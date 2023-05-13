@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -e
+
+IMAGE_NAME=${IMAGE_NAME:-"dreamup-image-service"}
+IMAGE_TAG=${IMAGE_TAG:-"latest"}
+
+docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
+set +e
