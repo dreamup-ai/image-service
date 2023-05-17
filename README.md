@@ -32,7 +32,11 @@ npm test
 
 Running the tests will also create a directory of test images in the root of the project. It is recommended to visually inspect these images as part of the testing process.
 
-## Running the Service Locally
+## Run Locally
+
+This project uses `dotenv` to read environment files. Multi-environment setups are supported via the environment variable `APP_ENV`. On start, the server will load `.env.${APP_ENV}`. The `start` script and the `user-service.yml` file both assume `APP_ENV=local`, so you will need to create a file in the root of the directory called `.env.local`. For most purposes, copying `.env.test` should be sufficient. The `.gitignore` contains a rule to ignore `.env*.local` files.
+
+### Running the Service Locally
 
 ```shell
 # run the dependency containers
@@ -47,6 +51,26 @@ npm run init-local
 # run the service
 npm start
 ```
+
+#### Run with docker
+
+```shell
+npm run compose-up
+
+# OR
+
+./scripts/up
+
+# Down everything with
+
+npm run compose-down
+
+# OR
+
+./scripts/down
+```
+
+You can pass any arguments supported by `docker compose up` and `docker compose down` when using the `up` and `down` scripts, respectively.
 
 ## Configuration
 

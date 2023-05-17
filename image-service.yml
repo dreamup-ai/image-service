@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  image-service:
+    container_name: dreamup-image-service
+    image: dreamup-image-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    env_file:
+      - .env.local
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+      - S3_ENDPOINT=http://localstack:4566
+    volumes:
+      # There's a bunch of keys in the fixtures folder that we need to use
+      - type: bind
+        source: ./test/fixtures
+        target: /app/test/fixtures
+        read_only: true
