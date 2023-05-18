@@ -26,6 +26,9 @@ npm install
 # run the dependency containers
 docker compose -f dependencies.yml up --detach
 
+# install dependencies
+npm install
+
 # run the tests
 npm test
 ```
