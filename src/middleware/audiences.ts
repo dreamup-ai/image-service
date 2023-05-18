@@ -9,6 +9,22 @@ export const dreamupInternal = makeSourceValidator(
 
 export { sessionValidator as dreamupUserSession };
 
+export const optionalUserSession = async (request: any, reply: any) => {
+  if (request.cookies[config.session.cookieName]) {
+    try {
+      await sessionValidator(request, reply);
+    } catch (e: any) {
+      if (e.continue) {
+        return;
+      } else if (e.redirect) {
+        reply.code(e.code).redirect(e.redirect);
+      } else {
+        reply.code(e.code).send({ error: e.error });
+      }
+    }
+  }
+};
+
 export const either = (a: any, b: any) => async (request: any, reply: any) => {
   try {
     await a(request, reply);

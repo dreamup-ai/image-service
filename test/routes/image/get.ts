@@ -3,9 +3,18 @@ import { expect } from "chai";
 import { FastifyInstance } from "fastify";
 import sharp, { Sharp } from "sharp";
 import { v4 as uuidv4 } from "uuid";
-import { uploadImageToBucket } from "../../../src/crud";
+import {
+  createNewImageInCache,
+  getKeyForImage,
+  uploadImageToBucket,
+} from "../../../src/crud";
 // import { Image } from "../../../src/types";
-import { clearBucket, getServer, writeOutputImage } from "../../util";
+import {
+  clearBucket,
+  clearTable,
+  getServer,
+  writeOutputImage,
+} from "../../util";
 
 import fs from "node:fs";
 const imageBuff = fs.readFileSync("test/fixtures/plant.png");
@@ -25,15 +34,18 @@ describe("GET /image/:id.:ext", () => {
   beforeEach(async () => {
     // await clearTable();
     await clearBucket();
+    await clearTable();
     image = undefined;
     url = undefined;
 
     ogImage = sharp(imageBuff);
     ogMeta = await ogImage.metadata();
 
-    await uploadImageToBucket("SYSTEM", imageId, ogImage, {
+    const params = await uploadImageToBucket("SYSTEM", imageId, ogImage, {
       quality: 100,
     });
+    const key = getKeyForImage("SYSTEM", imageId, params);
+    await createNewImageInCache("SYSTEM", imageId, key, true);
   });
 
   afterEach(async () => {

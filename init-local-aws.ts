@@ -30,18 +30,45 @@ export const createTable = async () => {
             AttributeType: "S",
           },
           {
-            AttributeName: "exp",
-            AttributeType: "N",
+            AttributeName: "id",
+            AttributeType: "S",
+          },
+          {
+            AttributeName: "id_public",
+            AttributeType: "S",
           },
         ],
         KeySchema: [
           {
-            AttributeName: "url",
+            AttributeName: "id",
             KeyType: "HASH",
           },
+        ],
+        GlobalSecondaryIndexes: [
           {
-            AttributeName: "exp",
-            KeyType: "RANGE",
+            // This index is ${id}:${1 | 0}, a combined value that makes querying for public images efficient
+            IndexName: "id_public",
+            KeySchema: [
+              {
+                AttributeName: "id_public",
+                KeyType: "HASH",
+              },
+            ],
+            Projection: {
+              ProjectionType: "ALL",
+            },
+          },
+          {
+            IndexName: "url",
+            KeySchema: [
+              {
+                AttributeName: "url",
+                KeyType: "HASH",
+              },
+            ],
+            Projection: {
+              ProjectionType: "ALL",
+            },
           },
         ],
         BillingMode: "PAY_PER_REQUEST",

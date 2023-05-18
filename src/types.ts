@@ -156,9 +156,9 @@ export const imageUploadSchema = {
 
 export type ImageUpload = FromSchema<typeof imageUploadSchema>;
 
-export const cachedUrlSchema = {
+export const cacheEntrySchema = {
   type: "object",
-  required: ["url", "id", "exp"],
+  required: ["id", "original_key", "user"],
   properties: {
     url: {
       type: "string",
@@ -175,10 +175,23 @@ export const cachedUrlSchema = {
       description:
         "The time at which the cached URL expires, expressed in SECONDS since the UNIX epoch",
     },
+    public: {
+      type: "boolean",
+      default: false,
+    },
+    original_key: {
+      type: "string",
+      description: "The bucket key of the original image",
+    },
+    user: {
+      type: "string",
+      description: "The user who uploaded the image",
+      default: "anonymous",
+    },
   },
 } as const satisfies JSONSchema7;
 
-export type CachedUrl = FromSchema<typeof cachedUrlSchema>;
+export type CacheEntry = FromSchema<typeof cacheEntrySchema>;
 
 export const imageDimensionSchema = {
   type: "number",

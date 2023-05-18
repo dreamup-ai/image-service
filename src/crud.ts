@@ -1,8 +1,12 @@
-import { GetItemCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import {
+  GetItemCommand,
+  PutItemCommand,
+  QueryCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
-  ListObjectsCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Item } from "dynamo-tools";
@@ -12,7 +16,7 @@ import { client as dynamo } from "./clients/dynamo";
 import { client as s3 } from "./clients/s3";
 import config from "./config";
 import {
-  CachedUrl,
+  CacheEntry,
   ImageParams,
   SupportedOutputImageExtension,
   coerceImageParams,
@@ -21,109 +25,38 @@ import {
 
 const { imageTable } = config.db;
 
-// export const createNewImageInDb = async (
-//   image: Image,
-//   log: FastifyBaseLogger
-// ): Promise<Image> => {
-//   if (!image.id) {
-//     image.id = uuidv4();
-//   }
-//   if (!image.versions || !image.versions.length) {
-//     throw new Error("Cannot create image without versions");
-//   }
+const coerceObjectToCacheEntry = (obj: any): CacheEntry => {
+  if (obj.id_public && obj.id_public.endsWith(":1")) {
+    obj.public = true;
+  } else {
+    obj.public = false;
+  }
+  delete obj.id_public;
 
-//   const createCmd = new PutItemCommand({
-//     TableName: imageTable,
-//     Item: Item.fromObject(image),
-//     ConditionExpression: "attribute_not_exists(id)",
-//   });
+  return obj;
+};
 
-//   try {
-//     await dynamo.send(createCmd);
-
-//     sendWebhook("image.created", image, log);
-//     return image;
-//   } catch (e: any) {
-//     if (e.name === "ConditionalCheckFailedException") {
-//       const err = new Error("Image already exists");
-//       err.name = "ImageAlreadyExists";
-//       throw err;
-//     }
-//     throw e;
-//   }
-// };
-
-// export const addNewImageVersionToDb = async (
-//   id: string,
-//   version: ImageVersion,
-//   log: FastifyBaseLogger
-// ): Promise<Image> => {
-//   const updateCmd = new UpdateItemCommand({
-//     TableName: imageTable,
-//     Key: Item.fromObject({ id }),
-//     UpdateExpression: "SET #versions = list_append(#versions, :version)",
-//     ExpressionAttributeNames: {
-//       "#versions": "versions",
-//     },
-//     ExpressionAttributeValues: {
-//       ":version": Item.fromObject([version]),
-//     },
-//     ReturnValues: "ALL_NEW",
-//     ConditionExpression: "attribute_exists(id)",
-//   });
-
-//   try {
-//     const { Attributes } = await dynamo.send(updateCmd);
-//     const updatedImg = Item.toObject(Attributes) as Image;
-//     sendWebhook("image.updated", updatedImg, log);
-//     return updatedImg;
-//   } catch (e: any) {
-//     if (e.name === "ConditionalCheckFailedException") {
-//       const err = new Error("Image does not exist");
-//       err.name = "ImageDoesNotExist";
-//       throw err;
-//     }
-//     throw e;
-//   }
-// };
-
-// export const getImageFromDbById = async (
-//   id: string,
-//   log: FastifyBaseLogger
-// ): Promise<Image | null> => {
-//   const getCmd = new GetItemCommand({
-//     TableName: imageTable,
-//     Key: Item.fromObject({ id }),
-//   });
-
-//   const { Item: item } = await dynamo.send(getCmd);
-//   if (!item) {
-//     return null;
-//   }
-//   const image = Item.toObject(item) as Image;
-//   return image;
-// };
-
-export const checkCacheForUrl = async (url: string): Promise<string | null> => {
-  const getCmd = new GetItemCommand({
+export const checkCacheForUrl = async (
+  url: string
+): Promise<CacheEntry | null> => {
+  const queryCmd = new QueryCommand({
     TableName: imageTable,
-    Key: Item.fromObject({ url }),
+    IndexName: "url",
+    KeyConditionExpression: "#url = :url",
+    ExpressionAttributeNames: {
+      "#url": "url",
+    },
+    ExpressionAttributeValues: {
+      ":url": Item.fromObject(url),
+    },
   });
 
-  const { Item: item } = await dynamo.send(getCmd);
-  if (!item) {
+  const { Items } = await dynamo.send(queryCmd);
+  if (!Items || !Items.length) {
     return null;
   }
-
-  const image = Item.toObject(item) as CachedUrl;
-
-  const nowInSeconds = Math.floor(Date.now() / 1000);
-
-  if (image.exp && image.exp < nowInSeconds) {
-    return null;
-  }
-
-  return image.id;
+  const cachedUrl = Item.toObject(Items[0]);
+  return coerceObjectToCacheEntry(cachedUrl);
 };
 
 export const addUrlToCache = async (url: string, id: string): Promise<void> => {
@@ -134,6 +67,7 @@ export const addUrlToCache = async (url: string, id: string): Promise<void> => {
       id,
       url,
       exp: nowInSeconds + config.db.urlCacheTTLSeconds,
+      id_public: `${id}:1`, // All web images are considered public by default.
     }),
     ConditionExpression: "attribute_not_exists(id)",
   });
@@ -148,54 +82,108 @@ export const addUrlToCache = async (url: string, id: string): Promise<void> => {
   }
 };
 
-// export const getImageFromDbByUrl = async (
-//   url: string,
-//   log: FastifyBaseLogger
-// ): Promise<Image | null> => {
-//   const getCmd = new QueryCommand({
-//     TableName: imageTable,
-//     IndexName: "url",
-//     KeyConditionExpression: "#url = :url",
-//     ExpressionAttributeNames: {
-//       "#url": "url",
-//     },
-//     ExpressionAttributeValues: {
-//       ":url": Item.fromObject(url),
-//     },
-//   });
+export const makeImagePublic = async (id: string): Promise<void> => {
+  const updateCmd = new UpdateItemCommand({
+    TableName: imageTable,
+    Key: Item.fromObject({ id }),
+    UpdateExpression: "SET #public = :public",
+    ExpressionAttributeNames: {
+      "#public": "id_public",
+    },
+    ExpressionAttributeValues: {
+      ":public": Item.fromObject(`${id}:1`),
+    },
+    ReturnValues: "NONE",
+    ConditionExpression: "attribute_exists(id)",
+  });
 
-//   const { Items } = await dynamo.send(getCmd);
-//   if (!Items || !Items.length) {
-//     return null;
-//   }
-//   const image = Item.toObject(Items[0]) as Image;
-//   return image;
-// };
+  try {
+    await dynamo.send(updateCmd);
+  } catch (e: any) {
+    if (e.name === "ConditionalCheckFailedException") {
+      const err = new Error("Image does not exist");
+      err.name = "ImageDoesNotExist";
+      throw err;
+    }
+    throw e;
+  }
+};
 
-// export const deleteImageFromDb = async (
-//   id: string,
-//   log: FastifyBaseLogger
-// ): Promise<void> => {
-//   const deleteCmd = new DeleteItemCommand({
-//     TableName: imageTable,
-//     Key: Item.fromObject({ id }),
-//     ReturnValues: "ALL_OLD",
-//     ConditionExpression: "attribute_exists(id)",
-//   });
+export const makeImagePrivate = async (id: string): Promise<void> => {
+  const updateCmd = new UpdateItemCommand({
+    TableName: imageTable,
+    Key: Item.fromObject({ id }),
+    UpdateExpression: "SET #public = :public",
+    ExpressionAttributeNames: {
+      "#public": "id_public",
+    },
+    ExpressionAttributeValues: {
+      ":public": Item.fromObject(`${id}:0`),
+    },
+    ReturnValues: "NONE",
+    ConditionExpression: "attribute_exists(id)",
+  });
 
-//   try {
-//     const { Attributes } = await dynamo.send(deleteCmd);
-//     const image = Item.toObject(Attributes) as Image;
-//     sendWebhook("image.deleted", image, log);
-//   } catch (e: any) {
-//     if (e.name === "ConditionalCheckFailedException") {
-//       const err = new Error("Image does not exist");
-//       err.name = "ImageDoesNotExist";
-//       throw err;
-//     }
-//     throw e;
-//   }
-// };
+  try {
+    await dynamo.send(updateCmd);
+  } catch (e: any) {
+    if (e.name === "ConditionalCheckFailedException") {
+      const err = new Error("Image does not exist");
+      err.name = "ImageDoesNotExist";
+      throw err;
+    }
+    throw e;
+  }
+};
+
+export const createNewImageInCache = async (
+  user: string,
+  id: string,
+  originalKey: string,
+  isPublic: boolean
+): Promise<void> => {
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  const createCmd = new PutItemCommand({
+    TableName: imageTable,
+    Item: Item.fromObject({
+      id,
+      user,
+      original_key: originalKey,
+      created: nowInSeconds,
+      id_public: `${id}:${isPublic ? 1 : 0}`,
+      exp: Number.MAX_SAFE_INTEGER,
+    }),
+    ConditionExpression: "attribute_not_exists(id)",
+  });
+
+  try {
+    await dynamo.send(createCmd);
+  } catch (e: any) {
+    if (e.name === "ConditionalCheckFailedException") {
+      const err = new Error("Image already exists");
+      err.name = "ImageAlreadyExists";
+      throw err;
+    }
+    throw e;
+  }
+};
+
+export const getImageFromCacheById = async (
+  id: string
+): Promise<CacheEntry | null> => {
+  const getCmd = new GetItemCommand({
+    TableName: imageTable,
+    Key: Item.fromObject({ id }),
+  });
+
+  const { Item: item } = await dynamo.send(getCmd);
+  if (!item) {
+    return null;
+  }
+  const image = Item.toObject(item);
+
+  return coerceObjectToCacheEntry(image);
+};
 
 export const getFilenameForImage = (
   id: string,
@@ -349,70 +337,20 @@ export const getBestImageByID = async (
   user: string,
   id: string
 ): Promise<{ img: Sharp; params: ImageParams }> => {
-  // Paginate through all images for this ID
-  const images = [];
-  let marker: string | undefined;
-  let isTruncated: boolean = false;
-
-  do {
-    const listCmd = new ListObjectsCommand({
-      Bucket: config.bucket.name,
-      Prefix: `${config.bucket.prefix}${user}/${id}`,
-      Marker: marker,
-    });
-    const { Contents, IsTruncated, NextMarker } = await s3.send(listCmd);
-    if (Contents) {
-      images.push(...Contents);
-    }
-    isTruncated = IsTruncated || false;
-    marker = NextMarker;
-  } while (marker);
-
-  // Sort images by quality and dimensions
-  images.sort((a, b) => {
-    if (!a.Key || !b.Key) {
-      return 0;
-    }
-    const aParams = getParamsFromKey(a.Key);
-    const bParams = getParamsFromKey(b.Key);
-    const aPixels = (aParams.width || 1) * (aParams.height || 1);
-    const bPixels = (bParams.width || 1) * (bParams.height || 1);
-    if (aPixels > bPixels) {
-      return -1;
-    } else if (aPixels < bPixels) {
-      return 1;
-    } else {
-      if (!aParams.quality || !bParams.quality) {
-        return 0;
-      }
-      if (aParams.quality > bParams.quality) {
-        return -1;
-      } else if (aParams.quality < bParams.quality) {
-        return 1;
-      } else {
-        return 0;
-      }
-    }
-  });
-
-  // Return the first image
-  if (images.length > 0) {
-    const image = images[0];
-    if (!image.Key) {
-      const err = new Error("Image does not exist");
-      err.name = "ImageDoesNotExist";
-      throw err;
-    }
-    const sharpImage = (await getImageFromBucketByKey(
-      image.Key,
-      "sharp"
-    )) as Sharp;
-    return { img: sharpImage, params: getParamsFromKey(image.Key) };
+  // Check cache for original key
+  const cacheRecord = await getImageFromCacheById(id);
+  if (!cacheRecord) {
+    const err = new Error("Image does not exist");
+    err.name = "ImageDoesNotExist";
+    throw err;
   }
 
-  const err = new Error("Image does not exist");
-  err.name = "ImageDoesNotExist";
-  throw err;
+  const img = (await getImageFromBucketByKey(
+    cacheRecord.original_key,
+    "sharp"
+  )) as Sharp;
+  const params = getParamsFromKey(cacheRecord.original_key);
+  return { img, params };
 };
 
 export const deleteImageFromBucketByKey = async (

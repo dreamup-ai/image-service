@@ -3,9 +3,11 @@ import sharp, { Sharp } from "sharp";
 import {
   getBestImageByID,
   getImageFromBucketByKey,
+  getImageFromCacheById,
   getKeyForImage,
   uploadImageToBucket,
 } from "../crud";
+import { optionalUserSession } from "../middleware/audiences";
 import {
   ErrorResponse,
   ImageQueryParams,
@@ -93,6 +95,11 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
             });
           }
         },
+
+        // Images can be public, so we don't require a user session.
+        // However, if a user session is provided, we will use it to
+        // check if the user has access to the image.
+        optionalUserSession,
       ],
     },
     async (req, reply) => {
@@ -100,7 +107,16 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
       const { w, width, h, height, fit, pos, bg, kernel, q, quality } =
         req.query;
 
-      const user = req.user?.userId || "SYSTEM";
+      const user = req.user?.userId;
+
+      const cacheRecord = await getImageFromCacheById(id);
+
+      if (!cacheRecord || (cacheRecord.user !== user && !cacheRecord.public)) {
+        return reply.code(404).send({
+          error: "Image Not Found",
+          message: "The requested image does not exist.",
+        });
+      }
 
       const requestedImageParams = {
         width: w || width,
@@ -115,7 +131,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
 
       req.query.quality = requestedImageParams.quality;
 
-      const key = getKeyForImage(user, id, requestedImageParams);
+      const key = getKeyForImage(cacheRecord.user, id, requestedImageParams);
 
       // console.log("REQUESTED KEY", key);
 
@@ -131,7 +147,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
 
       try {
         const { img: best, params: bestParams } = await getBestImageByID(
-          user,
+          cacheRecord.user,
           id
         );
         const bestMeta = await best.metadata();
@@ -187,7 +203,12 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
 
         // And then only upload it if it's not already in the bucket
         if (changed) {
-          await uploadImageToBucket(user, id, toReturn, requestedImageParams);
+          await uploadImageToBucket(
+            cacheRecord.user,
+            id,
+            toReturn,
+            requestedImageParams
+          );
         }
       } catch (e: any) {
         if (e.name === "ImageDoesNotExist") {
