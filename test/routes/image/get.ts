@@ -407,3 +407,31 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(404);
   });
 });
+
+describe("GET /image?url=", () => {
+  it("should return 200 with the image in its original size", async () => {});
+
+  it("should return 200 with the image in its original size if a larger size is requested", async () => {});
+
+  it("should return 200 with the image resized if a smaller size is requested", async () => {});
+
+  it("should return 200 with the image in a different format if requested", async () => {});
+
+  it("should return 400 if the requested link is not a valid URL", async () => {});
+
+  it("should return 400 if the requested link is not an image", async () => {});
+
+  it("should return 400 if the requested width is not a number", async () => {});
+
+  it("should return 400 if the requested width is less than 1", async () => {});
+
+  it("should return 400 if the requested height is not a number", async () => {});
+
+  it("should return 400 if the requested height is less than 1", async () => {});
+
+  it("should return 400 if the requested quality is not a number", async () => {});
+
+  it("should return 400 if the requested quality is less than 1", async () => {});
+
+  it("should return 404 if the image does not exist", async () => {});
+});
