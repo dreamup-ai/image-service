@@ -323,27 +323,6 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(200);
   });
 
-  it("should return 404 if the image does not exist", async () => {
-    const res = await server.inject({
-      method: "GET",
-      url: "/image/invalid-id",
-    });
-
-    expect(res.statusCode).to.equal(404);
-  });
-
-  it("should return 404 for unauthenticated requests to private images", async () => {
-    const privateImageId = uuidv4();
-    await createNewImageInCache(testUser, privateImageId, ogKey, false);
-
-    const res = await server.inject({
-      method: "GET",
-      url: `/image/${privateImageId}.png`,
-    });
-
-    expect(res.statusCode).to.equal(404);
-  });
-
   it("should return 400 if the requested width is not a number", async () => {
     const res = await server.inject({
       method: "GET",
@@ -405,5 +384,26 @@ describe("GET /image/:id.:ext", () => {
     });
 
     expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 404 if the image does not exist", async () => {
+    const res = await server.inject({
+      method: "GET",
+      url: "/image/invalid-id",
+    });
+
+    expect(res.statusCode).to.equal(404);
+  });
+
+  it("should return 404 for unauthenticated requests to private images", async () => {
+    const privateImageId = uuidv4();
+    await createNewImageInCache(testUser, privateImageId, ogKey, false);
+
+    const res = await server.inject({
+      method: "GET",
+      url: `/image/${privateImageId}.png`,
+    });
+
+    expect(res.statusCode).to.equal(404);
   });
 });
