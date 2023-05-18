@@ -16,6 +16,7 @@ export const sessionValidator = async (
   reply: FastifyReply
 ) => {
   const publicKey = await config.session.publicKey();
+
   // Auth token can be in a cookie, or in the Authorization header as a bearer token
   const { authorization } = req.headers;
 
