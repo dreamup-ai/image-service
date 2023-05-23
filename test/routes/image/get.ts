@@ -420,16 +420,11 @@ describe("GET /image?url=", () => {
   let ogMeta: sharp.Metadata;
   let image: Sharp | undefined;
   let url: string | undefined;
-  let ogUrl =
-    "https://app.dreamup.ai/content/21cda033-42e4-43bf-b713-531b2e3e99d6/1f55273e-7345-4e36-ab0f-c9a6ea8f1cc2.png";
+  let ogUrl = "https://example.com/image.png";
 
   before(async () => {
     server = await getServer();
-    const res = await fetch(ogUrl);
-    if (!res.ok) {
-      throw new Error("Failed to fetch original image");
-    }
-    ogImage = sharp(await res.arrayBuffer());
+    ogImage = sharp(imageBuff);
     ogMeta = await ogImage.metadata();
   });
 
@@ -437,6 +432,11 @@ describe("GET /image?url=", () => {
     // await clearTable();
     await clearBucket();
     await clearTable();
+    sandbox.restore();
+    sandbox
+      .stub(global, "fetch")
+      .withArgs(ogUrl)
+      .resolves(new Response(await ogImage.toBuffer()));
     image = undefined;
     url = undefined;
   });
@@ -448,7 +448,7 @@ describe("GET /image?url=", () => {
   });
 
   it("should return 200 with the image in its original size with an internal request", async () => {
-    const url = `/image?url=${encodeURIComponent(ogUrl)}`;
+    url = `/image?url=${encodeURIComponent(ogUrl)}`;
     const res = await server.inject({
       method: "GET",
       url,
