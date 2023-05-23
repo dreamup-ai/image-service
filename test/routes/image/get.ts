@@ -14,13 +14,19 @@ import {
   clearTable,
   getServer,
   issueSession,
+  sign,
   writeOutputImage,
 } from "../../util";
 
+import sinon from "sinon";
+
 import fs from "node:fs";
+import config from "../../../src/config";
 const imageBuff = fs.readFileSync("test/fixtures/plant.png");
 
 const testUser = "test-user";
+
+const sandbox = sinon.createSandbox();
 
 describe("GET /image/:id.:ext", () => {
   let server: FastifyInstance;
@@ -33,15 +39,7 @@ describe("GET /image/:id.:ext", () => {
 
   before(async () => {
     server = await getServer();
-  });
-
-  beforeEach(async () => {
-    // await clearTable();
     await clearBucket();
-    await clearTable();
-    image = undefined;
-    url = undefined;
-
     ogImage = sharp(imageBuff);
     ogMeta = await ogImage.metadata();
 
@@ -49,7 +47,15 @@ describe("GET /image/:id.:ext", () => {
       quality: 100,
     });
     ogKey = getKeyForImage(testUser, publicImageId, params);
+  });
+
+  beforeEach(async () => {
+    // await clearTable();
+
+    await clearTable();
     await createNewImageInCache(testUser, publicImageId, ogKey, true);
+    image = undefined;
+    url = undefined;
   });
 
   afterEach(async () => {
@@ -409,7 +415,61 @@ describe("GET /image/:id.:ext", () => {
 });
 
 describe("GET /image?url=", () => {
-  it("should return 200 with the image in its original size", async () => {});
+  let server: FastifyInstance;
+  let ogImage: Sharp;
+  let ogMeta: sharp.Metadata;
+  let image: Sharp | undefined;
+  let url: string | undefined;
+  let ogUrl =
+    "https://app.dreamup.ai/content/21cda033-42e4-43bf-b713-531b2e3e99d6/1f55273e-7345-4e36-ab0f-c9a6ea8f1cc2.png";
+
+  before(async () => {
+    server = await getServer();
+    const res = await fetch(ogUrl);
+    if (!res.ok) {
+      throw new Error("Failed to fetch original image");
+    }
+    ogImage = sharp(await res.arrayBuffer());
+    ogMeta = await ogImage.metadata();
+  });
+
+  beforeEach(async () => {
+    // await clearTable();
+    await clearBucket();
+    await clearTable();
+    image = undefined;
+    url = undefined;
+  });
+
+  afterEach(async () => {
+    if (image && url) {
+      await writeOutputImage(image, url);
+    }
+  });
+
+  it("should return 200 with the image in its original size with an internal request", async () => {
+    const url = `/image?url=${encodeURIComponent(ogUrl)}`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    // console.log(res.json());
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("png");
+  });
 
   it("should return 200 with the image in its original size if a larger size is requested", async () => {});
 

@@ -82,7 +82,7 @@ export const supportedInputImageExtensions = [
   "heif",
 ] as const;
 
-export type SupportedImageExtension =
+export type SupportedInputImageExtension =
   (typeof supportedInputImageExtensions)[number];
 
 export const outputImageFormats = [
@@ -752,6 +752,31 @@ export const imageQueryParamsSchema = {
 } as const satisfies JSONSchema7;
 
 export type ImageQueryParams = FromSchema<typeof imageQueryParamsSchema>;
+
+export const urlCacheQueryParamsSchema = {
+  allOf: [
+    imageQueryParamsSchema,
+    {
+      type: "object",
+      description: "Query parameters for fetching an web image by url",
+      required: ["url"],
+      properties: {
+        url: {
+          type: "string",
+          description: "URL of the image to fetch",
+          format: "uri",
+        },
+        fmt: {
+          type: "string",
+          description: "Format of the image to fetch",
+          enum: outputImageFormats,
+        },
+      },
+    },
+  ],
+} as const satisfies JSONSchema7;
+
+export type UrlCacheQueryParams = FromSchema<typeof urlCacheQueryParamsSchema>;
 
 export const imageParamsSchema = {
   allOf: [

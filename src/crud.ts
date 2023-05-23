@@ -140,24 +140,30 @@ export const createNewImageInCache = async (
   user: string,
   id: string,
   originalKey: string,
-  isPublic: boolean
-): Promise<void> => {
+  isPublic: boolean,
+  url?: string
+): Promise<CacheEntry> => {
   const nowInSeconds = Math.floor(Date.now() / 1000);
+  const cacheEntry: CacheEntry = {
+    url,
+    id,
+    user,
+    original_key: originalKey,
+    created: nowInSeconds,
+    id_public: `${id}:${isPublic ? 1 : 0}`,
+    exp: url
+      ? nowInSeconds + config.db.urlCacheTTLSeconds
+      : Number.MAX_SAFE_INTEGER,
+  };
   const createCmd = new PutItemCommand({
     TableName: imageTable,
-    Item: Item.fromObject({
-      id,
-      user,
-      original_key: originalKey,
-      created: nowInSeconds,
-      id_public: `${id}:${isPublic ? 1 : 0}`,
-      exp: Number.MAX_SAFE_INTEGER,
-    }),
+    Item: Item.fromObject(cacheEntry),
     ConditionExpression: "attribute_not_exists(id)",
   });
 
   try {
     await dynamo.send(createCmd);
+    return cacheEntry;
   } catch (e: any) {
     if (e.name === "ConditionalCheckFailedException") {
       const err = new Error("Image already exists");
