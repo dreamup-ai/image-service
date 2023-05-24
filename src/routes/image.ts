@@ -5,10 +5,13 @@ import { v4 as uuidv4 } from "uuid";
 import {
   checkCacheForUrl,
   createNewImageInCache,
+  deleteImageFromBucketByKey,
   getBestImageByID,
   getImageFromBucketByKey,
   getImageFromCacheById,
   getKeyForImage,
+  listImageKeysById,
+  removeImageFromCacheById,
   uploadImageToBucket,
 } from "../crud";
 import {
@@ -18,7 +21,9 @@ import {
   optionalUserSession,
 } from "../middleware/audiences";
 import {
+  DeletedResponse,
   ErrorResponse,
+  IdParam,
   ImageParams,
   ImageQueryParams,
   ImageUpload,
@@ -27,9 +32,11 @@ import {
   SupportedInputImageExtension,
   SupportedOutputImageExtension,
   UrlCacheQueryParams,
+  deletedResponseSchema,
   errorResponseSchema,
   getFormatFromExtension,
   getFullPositionName,
+  idParamSchema,
   imageQueryParamsSchema,
   imageUploadResponseSchema,
   imageUploadSchema,
@@ -349,6 +356,57 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    *
    * Delete all versions of an image from the bucket.
    */
+  fastify.delete<{
+    Params: IdParam;
+    Response: ErrorResponse | DeletedResponse;
+  }>(
+    "image/:id",
+    {
+      schema: {
+        params: idParamSchema,
+        response: {
+          200: {
+            description: "Ok",
+            content: {
+              "application/json": {
+                schema: deletedResponseSchema,
+              },
+            },
+          },
+          400: errorResponseSchema,
+          404: errorResponseSchema,
+        },
+      },
+      preValidation: [either(dreamupUserSession, dreamupInternal)],
+    },
+    async (req, reply) => {
+      const { id } = req.params;
+      const user = req.user?.userId || "internal";
+
+      const toDelete = await listImageKeysById(user, id);
+      if (toDelete.length === 0) {
+        return reply.code(404).send({
+          error: "Image not found",
+        });
+      }
+
+      // This way we stop serving the image from the cache immediately, but don't wait for the bucket to delete it.
+      await removeImageFromCacheById(id);
+
+      try {
+        await Promise.all(
+          toDelete.map((key) => deleteImageFromBucketByKey(key))
+        );
+      } catch (e: any) {
+        if (e.name === "NoSuchKey") {
+          // My guess is that this would happen if the image had already been deleted from the bucket by a different request.
+          fastify.log.warn(`Tried to delete non-existent key ${e.key}`);
+        } else {
+          throw e;
+        }
+      }
+    }
+  );
 
   /**
    * GET /image?url=:url&w=:w&h=:h&q=:q&ext=:ext

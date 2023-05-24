@@ -1,4 +1,5 @@
 import {
+  DeleteItemCommand,
   GetItemCommand,
   PutItemCommand,
   QueryCommand,
@@ -7,6 +8,7 @@ import {
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Item } from "dynamo-tools";
@@ -191,6 +193,15 @@ export const getImageFromCacheById = async (
   return coerceObjectToCacheEntry(image);
 };
 
+export const removeImageFromCacheById = async (id: string): Promise<void> => {
+  const deleteCmd = new DeleteItemCommand({
+    TableName: imageTable,
+    Key: Item.fromObject({ id }),
+  });
+
+  await dynamo.send(deleteCmd);
+};
+
 export const getFilenameForImage = (
   id: string,
   params: ImageParams
@@ -368,6 +379,26 @@ export const deleteImageFromBucketByKey = async (
   });
   try {
     await s3.send(deleteCmd);
+  } catch (e: any) {
+    throw e;
+  }
+};
+
+export const listImageKeysById = async (
+  user: string,
+  id: string
+): Promise<string[]> => {
+  const listCmd = new ListObjectsCommand({
+    Bucket: config.bucket.name,
+    Prefix: `${config.bucket.prefix}${user}/${id}`,
+  });
+
+  try {
+    const { Contents } = await s3.send(listCmd);
+    if (!Contents) {
+      return [];
+    }
+    return Contents.map((c) => c.Key as string);
   } catch (e: any) {
     throw e;
   }
