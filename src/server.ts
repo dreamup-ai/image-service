@@ -6,10 +6,7 @@ import imageRoutes from "./routes/image";
 
 export const build = async (opts: FastifyServerOptions) => {
   // Server should accept uploads up to 30MB
-  const server = Fastify({
-    ...opts,
-    bodyLimit: 30 * 1024 * 1024,
-  }).withTypeProvider<JsonSchemaToTsProvider>();
+  const server = Fastify(opts).withTypeProvider<JsonSchemaToTsProvider>();
 
   await server.register(require("@fastify/swagger"), {
     routePrefix: "/docs",
@@ -105,6 +102,12 @@ export const build = async (opts: FastifyServerOptions) => {
   );
   server.setErrorHandler((error, request, reply) => {
     const { message, statusCode, validation, validationContext } = error;
+    if (statusCode === 413) {
+      reply.status(413).send({
+        error: "File too large",
+      });
+      return;
+    }
     if (validation) {
       reply.status(400).send({
         error: message,

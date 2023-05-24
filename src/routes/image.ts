@@ -281,7 +281,6 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     async (req, reply) => {
       const { url, image, force } = req.body;
       const user = req.user?.userId || "internal";
-
       if (url) {
         // Check the cache first
         let cacheEntry = await checkCacheForUrl(url);
@@ -297,7 +296,15 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         // Use sharp to validate the image
         const data = await res.arrayBuffer();
         const img = sharp(data);
-        const actualMeta = await img.metadata();
+
+        let actualMeta: sharp.Metadata;
+        try {
+          actualMeta = await img.metadata();
+        } catch (e: any) {
+          return reply.code(400).send({
+            error: "Invalid image",
+          });
+        }
         if (!actualMeta.format) {
           return reply.code(400).send({
             error: "Invalid image",

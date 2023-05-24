@@ -158,15 +158,11 @@ export type ImageUpload = FromSchema<typeof imageUploadSchema>;
 
 export const imageUploadResponseSchema = {
   type: "object",
-  required: ["id", "ext"],
+  required: ["id"],
   properties: {
     id: {
       type: "string",
       format: "uuid",
-    },
-    ext: {
-      type: "string",
-      enum: supportedOutputImageExtensions,
     },
   },
 } as const satisfies JSONSchema7;

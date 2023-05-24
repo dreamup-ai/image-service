@@ -81,7 +81,7 @@ export const clearBucket = async () => {
 let server: FastifyInstance;
 export const getServer = async () => {
   if (!server) {
-    server = await build({ logger: false });
+    server = await build({ logger: false, bodyLimit: 1024 * 1024 });
   }
   return server;
 };
