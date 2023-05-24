@@ -444,6 +444,7 @@ describe("GET /image?url=", () => {
     if (image && url) {
       await writeOutputImage(image, url);
     }
+    sandbox.restore();
   });
 
   it("should return 200 with the image in its original size with an internal request", async () => {
