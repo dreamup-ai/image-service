@@ -5,7 +5,11 @@ import config from "./config";
 import imageRoutes from "./routes/image";
 
 export const build = async (opts: FastifyServerOptions) => {
-  const server = Fastify(opts).withTypeProvider<JsonSchemaToTsProvider>();
+  // Server should accept uploads up to 30MB
+  const server = Fastify({
+    ...opts,
+    bodyLimit: 30 * 1024 * 1024,
+  }).withTypeProvider<JsonSchemaToTsProvider>();
 
   await server.register(require("@fastify/swagger"), {
     routePrefix: "/docs",

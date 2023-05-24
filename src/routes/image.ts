@@ -21,6 +21,8 @@ import {
   ErrorResponse,
   ImageParams,
   ImageQueryParams,
+  ImageUpload,
+  ImageUploadResponse,
   ImageUrl,
   SupportedInputImageExtension,
   SupportedOutputImageExtension,
@@ -29,6 +31,8 @@ import {
   getFormatFromExtension,
   getFullPositionName,
   imageQueryParamsSchema,
+  imageUploadResponseSchema,
+  imageUploadSchema,
   imageUrlSchema,
   supportedInputImageExtensions,
   supportedOutputImageExtensions,
@@ -251,113 +255,87 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    * Upload a new image to the bucket, downloading it first if a url is provided.
    * Also accepts a base64 encoded image.
    */
-  // fastify.post<{
-  //   Body: ImageUpload;
-  //   Response: Image | ErrorResponse;
-  // }>(
-  //   "/image",
-  //   {
-  //     schema: {
-  //       body: imageUploadSchema,
-  //       response: {
-  //         200: {
-  //           description: "Ok",
-  //         },
-  //       },
-  //     },
-  //     preValidation: [either(dreamupUserSession, dreamupInternal)],
-  //   },
-  //   async (req, reply) => {
-  //     const { url, image, force } = req.body;
+  fastify.post<{
+    Body: ImageUpload;
+    Response: ImageUploadResponse | ErrorResponse;
+  }>(
+    "/image",
+    {
+      schema: {
+        body: imageUploadSchema,
+        response: {
+          200: {
+            description: "Ok",
+            content: {
+              "application/json": {
+                schema: imageUploadResponseSchema,
+              },
+            },
+          },
+          400: errorResponseSchema,
+          404: errorResponseSchema,
+        },
+      },
+      preValidation: [either(dreamupUserSession, dreamupInternal)],
+    },
+    async (req, reply) => {
+      const { url, image, force } = req.body;
+      const user = req.user?.userId || "internal";
 
-  //     let img: Sharp | undefined;
-  //     let id: string | undefined;
-  //     if (url) {
-  //       const cachedImage = await getImageFromDbByUrl(url, fastify.log);
-  //       if (cachedImage && !force) {
-  //         return reply.code(200).send(cachedImage);
-  //       }
+      if (url) {
+        // Check the cache first
+        let cacheEntry = await checkCacheForUrl(url);
+        if (cacheEntry && !force) {
+          return reply.code(304).send({ id: cacheEntry.id });
+        }
 
-  //       id = cachedImage?.id || uuidv4();
+        const res = await fetch(url);
+        if (!res.ok) {
+          return reply.code(res.status).send({ error: await res.text() });
+        }
 
-  //       // download image with fetch
-  //       try {
-  //         const res = await fetch(url);
-  //         if (!res.ok) {
-  //           return reply.code(400).send({
-  //             error: "Invalid url",
-  //           });
-  //         }
-  //         const data = await res.arrayBuffer();
-  //         img = sharp(data);
-  //       } catch (e) {
-  //         fastify.log.error(e);
-  //         return reply.code(500).send({
-  //           error: "Error downloading image",
-  //         });
-  //       }
-  //     } else if (image) {
-  //       // decode base64 image
-  //       const imgBuff = Buffer.from(image, "base64");
+        // Use sharp to validate the image
+        const data = await res.arrayBuffer();
+        const img = sharp(data);
+        const actualMeta = await img.metadata();
+        if (!actualMeta.format) {
+          return reply.code(400).send({
+            error: "Invalid image",
+          });
+        }
 
-  //       // Get sha of image
-  //       const sha = crypto.createHash("sha256", {
-  //         outputLength: 16,
-  //       });
-  //       sha.update(imgBuff);
-  //       id = sha.digest("base64");
+        const id = cacheEntry?.id || uuidv4();
 
-  //       const cachedImage = await getImageFromDbById(id, fastify.log);
-  //       if (cachedImage && !force) {
-  //         return reply.code(200).send(cachedImage);
-  //       }
+        const params = await uploadImageToBucket(user, id, img, {});
+        const key = getKeyForImage(user, id, params);
+        cacheEntry = await createNewImageInCache(user, id, key, true, url);
 
-  //       try {
-  //         img = sharp(imgBuff);
-  //       } catch (e) {
-  //         fastify.log.error(e);
-  //         return reply.code(400).send({
-  //           error: "Invalid base64 image",
-  //         });
-  //       }
-  //     }
+        return reply.code(201).send({ id });
+      }
 
-  //     if (!img) {
-  //       return reply.code(400).send({
-  //         error: "No image provided",
-  //       });
-  //     }
+      if (image) {
+        const img = sharp(Buffer.from(image, "base64"));
+        const actualMeta = await img.metadata();
+        if (!actualMeta.format) {
+          return reply.code(400).send({
+            error: "Invalid image",
+          });
+        }
 
-  //     if (!id) {
-  //       id = uuidv4();
-  //     }
+        const id = uuidv4();
 
-  //     const newImageVersion = await uploadImageToBucket(id, img, 100);
+        const params = await uploadImageToBucket(user, id, img, {});
+        const key = getKeyForImage(user, id, params);
+        await createNewImageInCache(user, id, key, true);
 
-  //     // Create a new image if we aren't working from a cache. If we are working from a cache,
-  //     // we only need to add the new version to the db, and then only if it doesn't already exist.
-  //     const newImageForDb: Image = {
-  //       id,
-  //       versions: [newImageVersion],
-  //       user: req.user?.userId || "internal",
-  //       url,
-  //     };
-  //     try {
-  //       const newImage = await createNewImageInDb(newImageForDb, fastify.log);
-  //       return reply.code(201).send(newImage);
-  //     } catch (e: any) {
-  //       if (e.name === "ImageAlreadyExists") {
-  //         return reply.code(409).send({
-  //           error: "Image already exists",
-  //         });
-  //       }
-  //       fastify.log.error(e);
-  //       return reply.code(500).send({
-  //         error: "Error creating image",
-  //       });
-  //     }
-  //   }
-  // );
+        return reply.code(201).send({ id });
+      }
+
+      return reply.code(400).send({
+        error: "Invalid request",
+      });
+    }
+  );
 
   /**
    * DELETE /image/:id

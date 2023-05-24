@@ -156,6 +156,23 @@ export const imageUploadSchema = {
 
 export type ImageUpload = FromSchema<typeof imageUploadSchema>;
 
+export const imageUploadResponseSchema = {
+  type: "object",
+  required: ["id", "ext"],
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    ext: {
+      type: "string",
+      enum: supportedOutputImageExtensions,
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type ImageUploadResponse = FromSchema<typeof imageUploadResponseSchema>;
+
 export const cacheEntrySchema = {
   type: "object",
   required: ["id", "original_key", "user"],
