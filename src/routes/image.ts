@@ -451,9 +451,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
         // Fetch the image from the url
         const res = await fetch(url);
         if (!res.ok) {
-          return reply.code(400).send({
-            error: "Invalid url",
-          });
+          return reply.code(res.status).send({ error: await res.text() });
         }
 
         // Use sharp to validate the image

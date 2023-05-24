@@ -433,10 +433,9 @@ describe("GET /image?url=", () => {
     await clearBucket();
     await clearTable();
     sandbox.restore();
-    sandbox
-      .stub(global, "fetch")
-      .withArgs(ogUrl)
-      .resolves(new Response(await ogImage.toBuffer()));
+    let fetchStub = sandbox.stub(global, "fetch");
+    fetchStub.withArgs(ogUrl).resolves(new Response(await ogImage.toBuffer()));
+    fetchStub.resolves(new Response("Not found", { status: 404 }));
     image = undefined;
     url = undefined;
   });
@@ -471,27 +470,223 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image in its original size if a larger size is requested", async () => {});
+  it("should return 200 with the image in its original size with a user request", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+      cookies: {
+        [config.session.cookieName]: issueSession(testUser, "testSession"),
+      },
+    });
 
-  it("should return 200 with the image resized if a smaller size is requested", async () => {});
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
 
-  it("should return 200 with the image in a different format if requested", async () => {});
+    image = sharp(res.rawPayload);
 
-  it("should return 400 if the requested link is not a valid URL", async () => {});
+    const meta = await image.metadata();
 
-  it("should return 400 if the requested link is not an image", async () => {});
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("png");
+  });
 
-  it("should return 400 if the requested width is not a number", async () => {});
+  it("should return 200 with the image in its original size if a larger size is requested", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&w=${ogMeta.width! + 1}&h=${
+      ogMeta.height! + 1
+    }`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
 
-  it("should return 400 if the requested width is less than 1", async () => {});
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
 
-  it("should return 400 if the requested height is not a number", async () => {});
+    image = sharp(res.rawPayload);
 
-  it("should return 400 if the requested height is less than 1", async () => {});
+    const meta = await image.metadata();
 
-  it("should return 400 if the requested quality is not a number", async () => {});
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("png");
+  });
 
-  it("should return 400 if the requested quality is less than 1", async () => {});
+  it("should return 200 with the image resized if a smaller size is requested", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&w=${ogMeta.width! - 1}&h=${
+      ogMeta.height! - 1
+    }`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
 
-  it("should return 404 if the image does not exist", async () => {});
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/png");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width! - 1);
+    expect(meta.height).to.equal(ogMeta.height! - 1);
+    expect(meta.format).to.equal("png");
+  });
+
+  it("should return 200 with the image in a different format if requested", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&fmt=webp`;
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.headers["content-type"]).to.equal("image/webp");
+
+    image = sharp(res.rawPayload);
+
+    const meta = await image.metadata();
+
+    expect(meta.width).to.equal(ogMeta.width);
+    expect(meta.height).to.equal(ogMeta.height);
+    expect(meta.format).to.equal("webp");
+  });
+
+  it("should return 400 if the requested link is not a valid URL", async () => {
+    url = "/image?url=invalid-url";
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested link is not an image", async () => {
+    url = "/image?url=https://example.com";
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested width is not a number", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&w=invalid-width`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested width is less than 1", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&w=0`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested height is not a number", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&h=invalid-height`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested height is less than 1", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&h=0`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested quality is not a number", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&q=invalid-quality`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 400 if the requested quality is less than 1", async () => {
+    url = `/image?url=${encodeURIComponent(ogUrl)}&q=0`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(400);
+  });
+
+  it("should return 404 if the image does not exist", async () => {
+    url = `/image?url=${encodeURIComponent(
+      "https://example.com/image-does-not-exist.png"
+    )}`;
+
+    const res = await server.inject({
+      method: "GET",
+      url,
+      headers: {
+        [config.webhooks.signatureHeader]: sign(JSON.stringify({ url })),
+      },
+    });
+
+    expect(res.statusCode).to.equal(404);
+  });
 });
