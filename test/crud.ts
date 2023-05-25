@@ -19,7 +19,7 @@ const key1 =
 
 describe("crud", () => {
   describe("getKeyForImage", () => {
-    it("should return the correct key for an image based on its parameters, #1", () => {
+    it("returns the correct key for an image based on its parameters, #1", () => {
       const key = getKeyForImage("test", "image-id", params1);
 
       expect(key).to.equal(key1);
@@ -27,7 +27,7 @@ describe("crud", () => {
   });
 
   describe("getParamsFromKey", () => {
-    it("should return the correct params for an image based on its key, #1", () => {
+    it("returns the correct params for an image based on its key, #1", () => {
       const params = getParamsFromKey(key1);
 
       expect(params).to.deep.equal(params1);

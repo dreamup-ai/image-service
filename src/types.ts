@@ -45,6 +45,41 @@ export const paginationTokenSchema = {
 
 export type PaginationToken = FromSchema<typeof paginationTokenSchema>;
 
+export const paginationResponseSchema = {
+  type: "object",
+  description: "A list of image ids and a token to get the next page",
+  properties: {
+    next: paginationTokenSchema,
+    images: {
+      type: "array",
+      items: {
+        type: "string",
+        description: "An Image ID",
+        format: "uuid",
+      },
+    },
+  },
+} as const satisfies JSONSchema7;
+
+export type PaginationResponse = FromSchema<typeof paginationResponseSchema>;
+
+export const paginationQueryParamsSchema = {
+  type: "object",
+  properties: {
+    limit: {
+      type: "integer",
+      minimum: 1,
+      maximum: 100,
+      default: 50,
+    },
+    token: paginationTokenSchema,
+  },
+} as const satisfies JSONSchema7;
+
+export type PaginationQueryParams = FromSchema<
+  typeof paginationQueryParamsSchema
+>;
+
 export const signatureHeaderSchema = {
   type: "object",
   properties: {},
@@ -677,40 +712,6 @@ export const cleanAvifExportOptions = cleanValidator.compile(
   avifExportOptionsSchema
 );
 
-// export const rawExportOptionsSchema = {
-//   type: "object",
-//   description: "Options for exporting a RAW image",
-//   required: [],
-//   properties: {
-//     depth: {
-//       type: "string",
-//       description: "Bit depth",
-//       enum: [
-//         "char",
-//         "uchar",
-//         "short",
-//         "ushort",
-//         "int",
-//         "uint",
-//         "float",
-//         "complex",
-//         "double",
-//         "dpcomplex",
-//       ],
-//     },
-//   },
-// } as const satisfies JSONSchema7;
-
-// export type RawExportOptions = FromSchema<typeof rawExportOptionsSchema>;
-
-// export const validateRawExportOptions = laxValidator.compile(
-//   rawExportOptionsSchema
-// );
-
-// export const cleanRawExportOptions = removeExtra.compile(
-//   rawExportOptionsSchema
-// );
-
 export const utilsByFormat = {
   jpeg: {
     exportOptionsSchema: jpegExportOptionsSchema,
@@ -737,11 +738,6 @@ export const utilsByFormat = {
     validate: validateAvifExportOptions,
     clean: cleanAvifExportOptions,
   },
-  // raw: {
-  //   exportOptionsSchema: rawExportOptionsSchema,
-  //   validate: validateRawExportOptions,
-  //   clean: cleanRawExportOptions,
-  // },
 } as const;
 
 export const imageQueryParamsSchema = {
@@ -760,7 +756,6 @@ export const imageQueryParamsSchema = {
     ...webpExportOptionsSchema.properties,
     ...tiffExportOptionsSchema.properties,
     ...avifExportOptionsSchema.properties,
-    // ...rawExportOptionsSchema.properties,
   },
 } as const satisfies JSONSchema7;
 

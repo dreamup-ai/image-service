@@ -49,7 +49,7 @@ describe("POST /image", () => {
     url = undefined;
   });
 
-  it("should return 201 with the image id with an internal request and a url, if not already cached", async () => {
+  it("returns 201 with the image id with an internal request and a url, if not already cached", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -88,7 +88,7 @@ describe("POST /image", () => {
     expect(meta.height).to.equal(ogMeta.height);
   });
 
-  it("should return 201 with the image id with a user request and a url, if not already cached", async () => {
+  it("returns 201 with the image id with a user request and a url, if not already cached", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -125,7 +125,7 @@ describe("POST /image", () => {
     expect(meta.height).to.equal(ogMeta.height);
   });
 
-  it("should return 201 with the image id with an internal request and an image upload", async () => {
+  it("returns 201 with the image id with an internal request and an image upload", async () => {
     const imgB64 = imageBuff.toString("base64");
     const response = await server.inject({
       method: "POST",
@@ -167,7 +167,7 @@ describe("POST /image", () => {
     expect(meta.height).to.equal(ogMeta.height);
   });
 
-  it("should return 201 with the image id with a user request and an image upload", async () => {
+  it("returns 201 with the image id with a user request and an image upload", async () => {
     const imgB64 = imageBuff.toString("base64");
     const response = await server.inject({
       method: "POST",
@@ -207,7 +207,7 @@ describe("POST /image", () => {
     expect(meta.height).to.equal(ogMeta.height);
   });
 
-  it("should return 304 with the image id with an internal request and a url, if already cached and force is not specified", async () => {
+  it("returns 304 with the image id with an internal request and a url, if already cached and force is not specified", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -243,7 +243,7 @@ describe("POST /image", () => {
     expect(imageId).to.equal(originalImageId);
   });
 
-  it("should return 304 with the image id with a user request and a url, if already cached and force is not specified", async () => {
+  it("returns 304 with the image id with a user request and a url, if already cached and force is not specified", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -279,7 +279,7 @@ describe("POST /image", () => {
     expect(imageId).to.equal(originalImageId);
   });
 
-  it("should return 400 if the url is invalid", async () => {
+  it("returns 400 if the url is invalid", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -296,7 +296,7 @@ describe("POST /image", () => {
     expect(response.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the url is not an image", async () => {
+  it("returns 400 if the url is not an image", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -313,7 +313,7 @@ describe("POST /image", () => {
     expect(response.statusCode).to.equal(400);
   });
 
-  it("should return 400 if an uploaded image is invalid", async () => {
+  it("returns 400 if an uploaded image is invalid", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",
@@ -330,7 +330,7 @@ describe("POST /image", () => {
     expect(response.statusCode).to.equal(400);
   });
 
-  it("should return 413 if an uploaded image is too large", async () => {
+  it("returns 413 if an uploaded image is too large", async () => {
     const tooBigBuff = fs.readFileSync("test/fixtures/too-big.png");
     const tooBigPayload = tooBigBuff.toString("base64");
 
@@ -350,7 +350,7 @@ describe("POST /image", () => {
     expect(response.statusCode).to.equal(413);
   });
 
-  it("should return 404 if the url returns a 404", async () => {
+  it("returns 404 if the url returns a 404", async () => {
     const response = await server.inject({
       method: "POST",
       url: "/image",

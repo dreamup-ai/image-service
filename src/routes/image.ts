@@ -11,6 +11,7 @@ import {
   getImageFromCacheById,
   getKeyForImage,
   listImageKeysById,
+  listImagesForUser,
   removeImageFromCacheById,
   uploadImageToBucket,
 } from "../crud";
@@ -29,6 +30,8 @@ import {
   ImageUpload,
   ImageUploadResponse,
   ImageUrl,
+  PaginationQueryParams,
+  PaginationResponse,
   SupportedInputImageExtension,
   SupportedOutputImageExtension,
   UrlCacheQueryParams,
@@ -41,6 +44,8 @@ import {
   imageUploadResponseSchema,
   imageUploadSchema,
   imageUrlSchema,
+  paginationQueryParamsSchema,
+  paginationResponseSchema,
   supportedInputImageExtensions,
   supportedOutputImageExtensions,
   urlCacheQueryParamsSchema,
@@ -573,6 +578,39 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
    *
    * List all images owned by the current user
    */
+  fastify.get<{
+    Querystring: PaginationQueryParams;
+    Response: PaginationResponse;
+  }>(
+    "/images",
+    {
+      schema: {
+        querystring: paginationQueryParamsSchema,
+        response: {
+          200: {
+            description: "Ok",
+            content: {
+              "application/json": {
+                schema: paginationResponseSchema,
+              },
+            },
+          },
+        },
+      },
+      preValidation: [either(dreamupUserSession, dreamupInternal)],
+    },
+    async (req, reply) => {
+      const user = req.user?.userId || "internal";
+      const { limit = 50, token = null } = req.query;
+
+      const { images, next } = await listImagesForUser(user, limit, token);
+
+      return {
+        images: images.map((image) => image.id),
+        next,
+      };
+    }
+  );
 
   done();
 };

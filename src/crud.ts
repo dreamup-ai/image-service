@@ -202,6 +202,37 @@ export const removeImageFromCacheById = async (id: string): Promise<void> => {
   await dynamo.send(deleteCmd);
 };
 
+export const listImagesForUser = async (
+  user: string,
+  limit: number,
+  token: string | null
+): Promise<{ images: CacheEntry[]; next: string | undefined }> => {
+  const queryCmd = new QueryCommand({
+    TableName: imageTable,
+    IndexName: "user",
+    KeyConditionExpression: "#user = :user",
+    ExpressionAttributeNames: {
+      "#user": "user",
+    },
+    ExpressionAttributeValues: {
+      ":user": Item.fromObject(user),
+    },
+    Limit: limit,
+    ExclusiveStartKey: token ? Item.fromObject(JSON.parse(token)) : undefined,
+  });
+
+  const { Items, LastEvaluatedKey } = await dynamo.send(queryCmd);
+  const images = Items
+    ? Items.map((i) => coerceObjectToCacheEntry(Item.toObject(i)))
+    : [];
+  return {
+    images,
+    next: LastEvaluatedKey
+      ? JSON.stringify(Item.toObject(LastEvaluatedKey))
+      : undefined,
+  };
+};
+
 export const getFilenameForImage = (
   id: string,
   params: ImageParams

@@ -64,7 +64,7 @@ describe("GET /image/:id.:ext", () => {
     }
   });
 
-  it("should return 200 with the best version of the image if no extra params are provided", async () => {
+  it("returns 200 with the best version of the image if no extra params are provided", async () => {
     url = `/image/${publicImageId}.png`;
     const res = await server.inject({
       method: "GET",
@@ -89,7 +89,7 @@ describe("GET /image/:id.:ext", () => {
     });
   });
 
-  it("should return 200 with the image if it is requested in the same format and size", async () => {
+  it("returns 200 with the image if it is requested in the same format and size", async () => {
     url = `/image/${publicImageId}.png?w=${ogMeta.width}&h=${ogMeta.height}&q=100`;
     const res = await server.inject({
       method: "GET",
@@ -114,7 +114,7 @@ describe("GET /image/:id.:ext", () => {
     });
   });
 
-  it("should return 200 with the image in webp when requested", async () => {
+  it("returns 200 with the image in webp when requested", async () => {
     url = `/image/${publicImageId}.webp`;
     const res = await server.inject({
       method: "GET",
@@ -133,7 +133,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("webp");
   });
 
-  it("should return 200 with the image in jpeg when requested", async () => {
+  it("returns 200 with the image in jpeg when requested", async () => {
     url = `/image/${publicImageId}.jpeg`;
     const res = await server.inject({
       method: "GET",
@@ -152,7 +152,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("jpeg");
   });
 
-  it("should return 200 with the image in tiff when requested", async () => {
+  it("returns 200 with the image in tiff when requested", async () => {
     url = `/image/${publicImageId}.tiff`;
     const res = await server.inject({
       method: "GET",
@@ -171,7 +171,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("tiff");
   });
 
-  it("should return 200 with the image in avif when requested", async () => {
+  it("returns 200 with the image in avif when requested", async () => {
     url = `/image/${publicImageId}.avif`;
     const res = await server.inject({
       method: "GET",
@@ -192,7 +192,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("heif");
   });
 
-  it("should return 200 with the image resized to the requested width, preserving aspect ratio", async () => {
+  it("returns 200 with the image resized to the requested width, preserving aspect ratio", async () => {
     url = `/image/${publicImageId}.png?w=${ogMeta.width! / 2}`;
     const res = await server.inject({
       method: "GET",
@@ -211,7 +211,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image resized to the requested height, preserving aspect ratio", async () => {
+  it("returns 200 with the image resized to the requested height, preserving aspect ratio", async () => {
     url = `/image/${publicImageId}.png?h=${ogMeta.height! / 2}`;
     const res = await server.inject({
       method: "GET",
@@ -230,7 +230,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image resized to the requested quality", async () => {
+  it("returns 200 with the image resized to the requested quality", async () => {
     url = `/image/${publicImageId}.png?q=50`;
     const res = await server.inject({
       method: "GET",
@@ -250,7 +250,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.size).to.be.lessThan(ogMeta.size!);
   });
 
-  it("should return 200 with an image with the correct dimensions when w, h, and fit=contain are provided", async () => {
+  it("returns 200 with an image with the correct dimensions when w, h, and fit=contain are provided", async () => {
     url = `/image/${publicImageId}.png?w=500&h=500&fit=contain`;
     const res = await server.inject({
       method: "GET",
@@ -267,7 +267,7 @@ describe("GET /image/:id.:ext", () => {
     expect(metadata.height).to.equal(500);
   });
 
-  it("should return 200 and preserve aspect ratio when using fit=inside", async () => {
+  it("returns 200 and preserve aspect ratio when using fit=inside", async () => {
     url = `/image/${publicImageId}.png?w=500&h=500&fit=inside`;
     const res = await server.inject({
       method: "GET",
@@ -295,7 +295,7 @@ describe("GET /image/:id.:ext", () => {
     );
   });
 
-  it("should return 200 with the image in its original size if a larger size is requested", async () => {
+  it("returns 200 with the image in its original size if a larger size is requested", async () => {
     url = `/image/${publicImageId}.png?w=10000`;
     const res = await server.inject({
       method: "GET",
@@ -314,7 +314,7 @@ describe("GET /image/:id.:ext", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 for authenticated requests to private images", async () => {
+  it("returns 200 for authenticated requests to private images", async () => {
     const privateImageId = uuidv4();
     await createNewImageInCache(testUser, privateImageId, ogKey, false);
 
@@ -329,7 +329,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(200);
   });
 
-  it("should return 400 if the requested width is not a number", async () => {
+  it("returns 400 if the requested width is not a number", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?w=invalid-width`,
@@ -338,7 +338,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested width is less than 1", async () => {
+  it("returns 400 if the requested width is less than 1", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?w=0`,
@@ -347,7 +347,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested height is not a number", async () => {
+  it("returns 400 if the requested height is not a number", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?h=invalid-height`,
@@ -356,7 +356,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested height is less than 1", async () => {
+  it("returns 400 if the requested height is less than 1", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?h=0`,
@@ -365,7 +365,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested quality is not a number", async () => {
+  it("returns 400 if the requested quality is not a number", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?q=invalid-quality`,
@@ -374,7 +374,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested quality is less than 1", async () => {
+  it("returns 400 if the requested quality is less than 1", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?q=0`,
@@ -383,7 +383,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested quality is greater than 100", async () => {
+  it("returns 400 if the requested quality is greater than 100", async () => {
     const res = await server.inject({
       method: "GET",
       url: `/image/${publicImageId}.png?q=101`,
@@ -392,7 +392,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 404 if the image does not exist", async () => {
+  it("returns 404 if the image does not exist", async () => {
     const res = await server.inject({
       method: "GET",
       url: "/image/invalid-id",
@@ -401,7 +401,7 @@ describe("GET /image/:id.:ext", () => {
     expect(res.statusCode).to.equal(404);
   });
 
-  it("should return 404 for unauthenticated requests to private images", async () => {
+  it("returns 404 for unauthenticated requests to private images", async () => {
     const privateImageId = uuidv4();
     await createNewImageInCache(testUser, privateImageId, ogKey, false);
 
@@ -447,7 +447,7 @@ describe("GET /image?url=", () => {
     sandbox.restore();
   });
 
-  it("should return 200 with the image in its original size with an internal request", async () => {
+  it("returns 200 with the image in its original size with an internal request", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}`;
     const res = await server.inject({
       method: "GET",
@@ -471,7 +471,7 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image in its original size with a user request", async () => {
+  it("returns 200 with the image in its original size with a user request", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}`;
     const res = await server.inject({
       method: "GET",
@@ -493,7 +493,7 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image in its original size if a larger size is requested", async () => {
+  it("returns 200 with the image in its original size if a larger size is requested", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&w=${ogMeta.width! + 1}&h=${
       ogMeta.height! + 1
     }`;
@@ -517,7 +517,7 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image resized if a smaller size is requested", async () => {
+  it("returns 200 with the image resized if a smaller size is requested", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&w=${ogMeta.width! - 1}&h=${
       ogMeta.height! - 1
     }`;
@@ -541,7 +541,7 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("png");
   });
 
-  it("should return 200 with the image in a different format if requested", async () => {
+  it("returns 200 with the image in a different format if requested", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&fmt=webp`;
     const res = await server.inject({
       method: "GET",
@@ -563,7 +563,7 @@ describe("GET /image?url=", () => {
     expect(meta.format).to.equal("webp");
   });
 
-  it("should return 400 if the requested link is not a valid URL", async () => {
+  it("returns 400 if the requested link is not a valid URL", async () => {
     url = "/image?url=invalid-url";
 
     const res = await server.inject({
@@ -577,7 +577,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested link is not an image", async () => {
+  it("returns 400 if the requested link is not an image", async () => {
     url = "/image?url=https://example.com";
 
     const res = await server.inject({
@@ -591,7 +591,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested width is not a number", async () => {
+  it("returns 400 if the requested width is not a number", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&w=invalid-width`;
 
     const res = await server.inject({
@@ -605,7 +605,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested width is less than 1", async () => {
+  it("returns 400 if the requested width is less than 1", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&w=0`;
 
     const res = await server.inject({
@@ -619,7 +619,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested height is not a number", async () => {
+  it("returns 400 if the requested height is not a number", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&h=invalid-height`;
 
     const res = await server.inject({
@@ -633,7 +633,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested height is less than 1", async () => {
+  it("returns 400 if the requested height is less than 1", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&h=0`;
 
     const res = await server.inject({
@@ -647,7 +647,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested quality is not a number", async () => {
+  it("returns 400 if the requested quality is not a number", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&q=invalid-quality`;
 
     const res = await server.inject({
@@ -661,7 +661,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 400 if the requested quality is less than 1", async () => {
+  it("returns 400 if the requested quality is less than 1", async () => {
     url = `/image?url=${encodeURIComponent(ogUrl)}&q=0`;
 
     const res = await server.inject({
@@ -675,7 +675,7 @@ describe("GET /image?url=", () => {
     expect(res.statusCode).to.equal(400);
   });
 
-  it("should return 404 if the image does not exist", async () => {
+  it("returns 404 if the image does not exist", async () => {
     url = `/image?url=${encodeURIComponent(
       "https://example.com/image-does-not-exist.png"
     )}`;

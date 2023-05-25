@@ -37,6 +37,10 @@ export const createTable = async () => {
             AttributeName: "id_public",
             AttributeType: "S",
           },
+          {
+            AttributeName: "user",
+            AttributeType: "S",
+          },
         ],
         KeySchema: [
           {
@@ -63,6 +67,18 @@ export const createTable = async () => {
             KeySchema: [
               {
                 AttributeName: "url",
+                KeyType: "HASH",
+              },
+            ],
+            Projection: {
+              ProjectionType: "ALL",
+            },
+          },
+          {
+            IndexName: "user",
+            KeySchema: [
+              {
+                AttributeName: "user",
                 KeyType: "HASH",
               },
             ],

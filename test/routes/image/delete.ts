@@ -89,7 +89,7 @@ describe("DELETE /image/:id", () => {
     expect(imageKeysAfterDelete).to.have.lengthOf(0);
   });
 
-  it("should return 200 and allow a user to delete their own image", async () => {
+  it("returns 200 and allow a user to delete their own image", async () => {
     const resp = await server.inject({
       method: "DELETE",
       url: `/image/${publicImageId}`,
@@ -101,7 +101,7 @@ describe("DELETE /image/:id", () => {
     expect(resp.statusCode).to.equal(200);
   });
 
-  it("should return 200 and allow the system to delete an image that belongs to a user", async () => {
+  it("returns 200 and allow the system to delete an image that belongs to a user", async () => {
     const url = `/image/${publicImageId}`;
     const resp = await server.inject({
       method: "DELETE",
@@ -116,7 +116,7 @@ describe("DELETE /image/:id", () => {
     expect(resp.statusCode).to.equal(200);
   });
 
-  it("should return 404 and not allow a user to delete another user's image", async () => {
+  it("returns 404 and not allow a user to delete another user's image", async () => {
     const resp = await server.inject({
       method: "DELETE",
       url: `/image/${publicImageId}`,
@@ -128,7 +128,7 @@ describe("DELETE /image/:id", () => {
     expect(resp.statusCode).to.equal(404);
   });
 
-  it("should return 404 and not allow a user to delete an image that does not exist", async () => {
+  it("returns 404 and not allow a user to delete an image that does not exist", async () => {
     const resp = await server.inject({
       method: "DELETE",
       url: `/image/${uuidv4()}`,
@@ -140,7 +140,7 @@ describe("DELETE /image/:id", () => {
     expect(resp.statusCode).to.equal(404);
   });
 
-  it("should return 404 and not allow the system to delete an image that does not exist", async () => {
+  it("returns 404 and not allow the system to delete an image that does not exist", async () => {
     const fakeId = uuidv4();
     const url = `/image/${fakeId}`;
     const resp = await server.inject({
