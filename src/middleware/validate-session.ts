@@ -5,8 +5,9 @@ import config from "../config";
 declare module "fastify" {
   interface FastifyRequest {
     user?: {
-      userId: string;
-      sessionId: string;
+      userId?: string;
+      sessionId?: string;
+      isSystem?: boolean;
     };
   }
 }

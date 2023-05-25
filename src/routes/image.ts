@@ -86,7 +86,9 @@ const coerceToRequested = async (
   formatParams: any
 ) => {
   let changed = false;
+  let toReturn = img;
   let actualMeta = await img.metadata();
+  // console.log("requested", requestedParams, "actual", actualMeta);
   const format = getFormatFromExtension(ext);
   // Only resize if necessary
   if (
@@ -111,7 +113,7 @@ const coerceToRequested = async (
       resizeOptions.background = getRgba(requestedParams.bg);
     }
 
-    img = img.resize(resizeOptions);
+    toReturn = toReturn.resize(resizeOptions);
     changed = true;
   }
 
@@ -120,10 +122,10 @@ const coerceToRequested = async (
     format !== actualMeta.format
   ) {
     utilsByFormat[format].clean(formatParams);
-    img = img.toFormat(format, formatParams);
+    toReturn = toReturn.toFormat(format, formatParams);
     changed = true;
   }
-  return { changed, img };
+  return { changed, img: toReturn };
 };
 
 const routes = (fastify: FastifyInstance, _: any, done: Function) => {
@@ -231,16 +233,15 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
           ext,
           { ...req.query }
         );
-        reply
-          .type(`image/${requestedImageParams.format}`)
-          .send(await img.toBuffer());
+        const imgBuffer = await img.toBuffer();
+        reply.type(`image/${requestedImageParams.format}`).send(imgBuffer);
 
         // And then only upload it if it's not already in the bucket
         if (changed) {
           await uploadImageToBucket(
             cacheRecord.user,
             id,
-            img,
+            imgBuffer,
             requestedImageParams
           );
         }
@@ -288,6 +289,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     async (req, reply) => {
       const { url, image, force } = req.body;
       const user = req.user?.userId || "internal";
+
       if (url) {
         // Check the cache first
         let cacheEntry = await checkCacheForUrl(url);
@@ -360,7 +362,7 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     Params: IdParam;
     Response: ErrorResponse | DeletedResponse;
   }>(
-    "image/:id",
+    "/image/:id",
     {
       schema: {
         params: idParamSchema,
@@ -381,7 +383,16 @@ const routes = (fastify: FastifyInstance, _: any, done: Function) => {
     },
     async (req, reply) => {
       const { id } = req.params;
-      const user = req.user?.userId || "internal";
+      let user = req.user?.userId || "internal";
+      if (req.user?.isSystem) {
+        const cacheRecord = await getImageFromCacheById(id);
+        if (!cacheRecord) {
+          return reply.code(404).send({
+            error: "Image not found",
+          });
+        }
+        user = cacheRecord.user;
+      }
 
       const toDelete = await listImageKeysById(user, id);
       if (toDelete.length === 0) {

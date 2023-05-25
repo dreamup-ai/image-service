@@ -250,13 +250,12 @@ export const getParamsFromKey = (key: string): ImageParams => {
 export const uploadImageToBucket = async (
   user: string,
   id: string,
-  image: Sharp,
+  image: Sharp | Buffer,
   params: ImageParams
 ): Promise<ImageParams> => {
-  const buffer = await image.toBuffer();
-  const meta = await image.metadata();
+  const buffer = Buffer.isBuffer(image) ? image : await image.toBuffer();
+  const meta = await sharp(buffer).metadata();
   const { width, height, format } = meta;
-  // console.log(meta);
 
   if (!width || !height || !format) {
     const err = new Error("Invalid image metadata");

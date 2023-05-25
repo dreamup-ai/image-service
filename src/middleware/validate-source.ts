@@ -1,6 +1,16 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import crypto, { KeyObject } from "node:crypto";
 
+declare module "fastify" {
+  interface FastifyRequest {
+    user?: {
+      userId?: string;
+      sessionId?: string;
+      isSystem?: boolean;
+    };
+  }
+}
+
 export const makeSourceValidator = (publicKey: KeyObject, header: string) => {
   return async function sourceValidator(
     req: FastifyRequest,
@@ -34,5 +44,6 @@ export const makeSourceValidator = (publicKey: KeyObject, header: string) => {
       });
       return;
     }
+    req.user = { isSystem: true };
   };
 };

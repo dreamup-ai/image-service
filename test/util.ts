@@ -51,7 +51,8 @@ export const clearTable = async () => {
   await cache.deleteAll({ table: config.db.imageTable });
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export const clearBucket = async () => {
   let contents;
