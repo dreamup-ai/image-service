@@ -118,25 +118,4 @@ const config: config = {
   },
 };
 
-const imageCreateHooks = Object.keys(process.env)
-  .filter((x) => x.startsWith("WEBHOOK_IMAGE_CREATE") && process.env[x])
-  .map((x) => process.env[x]) as string[];
-if (imageCreateHooks.length > 0) {
-  config.webhooks.events["pipeline.create"] = imageCreateHooks;
-}
-
-const imageUpdateHooks = Object.keys(process.env)
-  .filter((x) => x.startsWith("WEBHOOK_IMAGE_UPDATE") && process.env[x])
-  .map((x) => process.env[x]) as string[];
-if (imageUpdateHooks.length > 0) {
-  config.webhooks.events["pipeline.update"] = imageUpdateHooks;
-}
-
-const imageDeleteHooks = Object.keys(process.env)
-  .filter((x) => x.startsWith("WEBHOOK_IMAGE_DELETE") && process.env[x])
-  .map((x) => process.env[x]) as string[];
-if (imageDeleteHooks.length > 0) {
-  config.webhooks.events["pipeline.delete"] = imageDeleteHooks;
-}
-
 export default config;
