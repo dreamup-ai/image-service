@@ -1,3 +1,13 @@
+<p align="center">
+  <a href="https://github.com/dreamup-ai/image-service/actions/workflows/dockerhub-build-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/dockerhub-build-push.yml?label=dockerhub-build-push&logo=github&style=plastic" alt="github workflow status"></a>
+  <a href="https://github.com/dreamup-ai/image-service/actions/workflows/dockerhub-description.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/dockerhub-description.yml?label=dockerhub-readme&logo=github&style=plastic" alt="github workflow status"></a>
+  <a href="https://github.com/dreamup-ai/image-service/actions/workflows/run-tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/run-tests.yml?label=run-tests&logo=github&style=plastic" alt="github workflow status"></a>
+  <a href="https://hub.docker.com/r/dreamupai/image-service"><img src="https://img.shields.io/docker/v/dreamupai/image-service?label=dockerhub&logo=docker&sort=date&style=plastic" alt="dockerhub image version"></a>
+  <a href="https://github.com/dreamup-ai/image-service"><img src="https://img.shields.io/github/package-json/v/dreamup-ai/image-service?color=purple&label=version&style=plastic" alt="app version"></a>
+</p>
+
+
+
 # image-service
 A service for managing images in dreamup.ai. It provides a REST API for uploading and downloading images, and supports features such as on-the-fly reformating and resizing. It also acts as a read-through cache for web images, in order to reduce the load on upstream (often public) image servers.
 
