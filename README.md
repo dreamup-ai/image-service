@@ -1,4 +1,5 @@
 <p align="center">
+  <a href="https://github.com/dreamup-ai/image-service/actions/workflows/ecr-build-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/ecr-build-push.yml?label=ecr-build-push&logo=github&style=plastic" alt="github workflow status"></a>
   <a href="https://github.com/dreamup-ai/image-service/actions/workflows/dockerhub-build-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/dockerhub-build-push.yml?label=dockerhub-build-push&logo=github&style=plastic" alt="github workflow status"></a>
   <a href="https://github.com/dreamup-ai/image-service/actions/workflows/dockerhub-description.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/dockerhub-description.yml?label=dockerhub-readme&logo=github&style=plastic" alt="github workflow status"></a>
   <a href="https://github.com/dreamup-ai/image-service/actions/workflows/run-tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/dreamup-ai/image-service/run-tests.yml?label=run-tests&logo=github&style=plastic" alt="github workflow status"></a>
